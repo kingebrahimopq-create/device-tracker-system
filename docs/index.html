@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Tracker System - نظام متتبع الأجهزة المتقدم</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 20px 0;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 40px;
+            border-radius: 10px;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 30px;
+        }
+
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #667eea;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo-icon {
+            font-size: 32px;
+        }
+
+        nav a {
+            margin-left: 30px;
+            text-decoration: none;
+            color: #333;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: #667eea;
+        }
+
+        .hero {
+            background: white;
+            padding: 60px 40px;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .hero h1 {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .hero p {
+            font-size: 18px;
+            color: #666;
+            margin-bottom: 30px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .feature-card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .feature-icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+        }
+
+        .feature-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .feature-card p {
+            color: #666;
+        }
+
+        .tech-stack {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin-bottom: 40px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .tech-stack h2 {
+            color: #667eea;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+
+        .tech-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 20px;
+        }
+
+        .tech-item {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .stat-number {
+            font-size: 36px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .code-section {
+            background: white;
+            padding: 40px;
+            border-radius: 10px;
+            margin-bottom: 40px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .code-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .code-block {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin-bottom: 20px;
+            border-left: 4px solid #667eea;
+        }
+
+        .code-block code {
+            font-family: 'Courier New', monospace;
+            color: #333;
+        }
+
+        footer {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px;
+            margin-top: 40px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        footer p {
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .social-links {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 15px;
+        }
+
+        .social-links a {
+            text-decoration: none;
+            color: #667eea;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .social-links a:hover {
+            color: #764ba2;
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 20px;
+            }
+
+            nav {
+                display: flex;
+                gap: 20px;
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            nav a {
+                margin-left: 0;
+            }
+
+            .hero h1 {
+                font-size: 32px;
+            }
+
+            .hero p {
+                font-size: 16px;
+            }
+
+            .cta-buttons {
+                flex-direction: column;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">📱</span>
+                    Device Tracker
+                </div>
+                <nav>
+                    <a href="#features">المميزات</a>
+                    <a href="#tech">التقنيات</a>
+                    <a href="#quickstart">البدء السريع</a>
+                    <a href="https://github.com/kingebrahimopq-create/device-tracker-system" target="_blank">GitHub</a>
+                </nav>
+            </div>
+        </header>
+
+        <section class="hero">
+            <h1>🚀 Device Tracker System</h1>
+            <p>نظام متتبع الأجهزة المتقدم مع التشفير والأوامر الآمنة</p>
+            <p style="font-size: 14px; color: #999;">إدارة الأجهزة عن بعد بأمان عالي وتشفير من طرف إلى طرف</p>
+            <div class="cta-buttons">
+                <a href="https://github.com/kingebrahimopq-create/device-tracker-system" class="btn btn-primary">📦 عرض على GitHub</a>
+                <a href="#quickstart" class="btn btn-secondary">🚀 ابدأ الآن</a>
+            </div>
+        </section>
+
+        <section class="stats">
+            <div class="stat-card">
+                <div class="stat-number">2000+</div>
+                <div class="stat-label">سطر كود</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">10+</div>
+                <div class="stat-label">API Endpoints</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">256-bit</div>
+                <div class="stat-label">تشفير AES</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number">30s</div>
+                <div class="stat-label">فترة الاتصال</div>
+            </div>
+        </section>
+
+        <section id="features" class="features">
+            <div class="feature-card">
+                <div class="feature-icon">🔐</div>
+                <h3>تشفير متقدم</h3>
+                <p>AES-256-GCM للتشفير من طرف إلى طرف مع مفاتيح فريدة لكل جهاز</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>خدمة خلفية</h3>
+                <p>اتصال دوري كل 30 ثانية مع معالجة الأوامر تلقائياً</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🛡️</div>
+                <h3>أوامر آمنة</h3>
+                <p>حظر الأوامر الخطرة والتحقق من الكلمات المفتاحية المحظورة</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📊</div>
+                <h3>معلومات شاملة</h3>
+                <p>جمع معلومات النظام والموقع والسجلات والأحداث</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🌐</div>
+                <h3>API RESTful</h3>
+                <p>10+ endpoints متقدمة للتحكم الكامل في الأجهزة</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">📱</div>
+                <h3>توليد APK</h3>
+                <p>توليد تطبيق عميل مخصص لكل جهاز بمعرف فريد</p>
+            </div>
+        </section>
+
+        <section id="tech" class="tech-stack">
+            <h2>🛠️ التقنيات المستخدمة</h2>
+            <div class="tech-grid">
+                <div class="tech-item">Node.js</div>
+                <div class="tech-item">Express.js</div>
+                <div class="tech-item">TypeScript</div>
+                <div class="tech-item">Axios</div>
+                <div class="tech-item">Crypto</div>
+                <div class="tech-item">CORS</div>
+                <div class="tech-item">REST API</div>
+                <div class="tech-item">AES-256-GCM</div>
+            </div>
+        </section>
+
+        <section id="quickstart" class="code-section">
+            <h2>🚀 البدء السريع</h2>
+            
+            <h3 style="color: #667eea; margin-top: 20px;">1. استنساخ المشروع</h3>
+            <div class="code-block">
+                <code>git clone https://github.com/kingebrahimopq-create/device-tracker-system.git
+cd device-tracker-system</code>
+            </div>
+
+            <h3 style="color: #667eea; margin-top: 20px;">2. تثبيت الخادم</h3>
+            <div class="code-block">
+                <code>cd server
+npm install
+npm run dev</code>
+            </div>
+
+            <h3 style="color: #667eea; margin-top: 20px;">3. تشغيل العميل (في نافذة أخرى)</h3>
+            <div class="code-block">
+                <code>cd client-app
+npm install
+npm run dev</code>
+            </div>
+
+            <h3 style="color: #667eea; margin-top: 20px;">4. اختبار الاتصال</h3>
+            <div class="code-block">
+                <code>curl http://localhost:3000/api/devices</code>
+            </div>
+        </section>
+
+        <section class="code-section">
+            <h2>📚 الملفات الرئيسية</h2>
+            
+            <h3 style="color: #667eea; margin-top: 20px;">📄 الملفات المتاحة:</h3>
+            <ul style="list-style: none; padding: 0;">
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">
+                    <strong>COMPLETE_PROJECT.md</strong> - الملف الشامل الكامل (800+ سطر)
+                </li>
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">
+                    <strong>README.md</strong> - دليل شامل عن المشروع
+                </li>
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">
+                    <strong>QUICK_START.md</strong> - دليل البدء السريع
+                </li>
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">
+                    <strong>API_DOCUMENTATION.md</strong> - توثيق API كامل
+                </li>
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">
+                    <strong>APK_GENERATION.md</strong> - دليل توليد APK
+                </li>
+                <li style="padding: 10px 0;">
+                    <strong>server/ و client-app/</strong> - الكود الكامل
+                </li>
+            </ul>
+        </section>
+
+        <section class="code-section">
+            <h2>📊 إحصائيات المشروع</h2>
+            
+            <table style="width: 100%; border-collapse: collapse;">
+                <tr style="background: #f5f5f5;">
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>الميزة</strong></td>
+                    <td style="padding: 10px; border: 1px solid #ddd;"><strong>القيمة</strong></td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">عدد الملفات</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">15+</td>
+                </tr>
+                <tr style="background: #f5f5f5;">
+                    <td style="padding: 10px; border: 1px solid #ddd;">عدد أسطر الكود</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">2000+</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">عدد API Endpoints</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">10+</td>
+                </tr>
+                <tr style="background: #f5f5f5;">
+                    <td style="padding: 10px; border: 1px solid #ddd;">أنواع الأوامر</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">10+</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; border: 1px solid #ddd;">مستوى التشفير</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">AES-256-GCM</td>
+                </tr>
+                <tr style="background: #f5f5f5;">
+                    <td style="padding: 10px; border: 1px solid #ddd;">فترة الاتصال</td>
+                    <td style="padding: 10px; border: 1px solid #ddd;">30 ثانية</td>
+                </tr>
+            </table>
+        </section>
+
+        <section class="code-section">
+            <h2>✨ المميزات الرئيسية</h2>
+            
+            <ul style="list-style: none; padding: 0;">
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">✅ تشفير من طرف إلى طرف (AES-256-GCM)</li>
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">✅ خدمة خلفية مستمرة (كل 30 ثانية)</li>
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">✅ أوامر آمنة وموثوقة</li>
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">✅ معلومات نظام شاملة</li>
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">✅ سجلات مفصلة</li>
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">✅ توليد APK مخصص</li>
+                <li style="padding: 10px 0; border-bottom: 1px solid #eee;">✅ API RESTful كامل</li>
+                <li style="padding: 10px 0;">✅ معالجة أخطاء متقدمة</li>
+            </ul>
+        </section>
+
+        <footer>
+            <p><strong>Device Tracker System</strong> - نظام متتبع الأجهزة المتقدم</p>
+            <p>مشروع مفتوح المصدر مع تشفير متقدم وأوامر آمنة</p>
+            <div class="social-links">
+                <a href="https://github.com/kingebrahimopq-create/device-tracker-system" target="_blank">🔗 GitHub</a>
+                <a href="https://github.com/kingebrahimopq-create/device-tracker-system/issues" target="_blank">📝 Issues</a>
+                <a href="https://github.com/kingebrahimopq-create/device-tracker-system/discussions" target="_blank">💬 Discussions</a>
+            </div>
+            <p style="margin-top: 20px; font-size: 12px; color: #999;">
+                © 2026 Device Tracker System. جميع الحقوق محفوظة.
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

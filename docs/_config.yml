@@ -1,0 +1,12 @@
+title: Device Tracker System
+description: نظام متتبع الأجهزة المتقدم مع التشفير والأوامر الآمنة
+theme: jekyll-theme-minimal
+logo: https://raw.githubusercontent.com/kingebrahimopq-create/device-tracker-system/main/docs/logo.png
+
+# GitHub Pages Settings
+plugins:
+  - jekyll-seo-tag
+  - jekyll-sitemap
+
+# Language
+lang: ar
