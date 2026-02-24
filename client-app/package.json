@@ -1,0 +1,28 @@
+{
+  "name": "device-tracker-client",
+  "version": "1.0.0",
+  "description": "تطبيق العميل لـ Device Tracker - يعمل في الخلفية ويتصل بالخادم",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "device-tracking",
+    "client",
+    "background-service"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.4.0",
+    "crypto": "^1.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "ts-node": "^10.9.1"
+  }
+}
