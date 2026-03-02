@@ -2,7 +2,7 @@
 // 🔧 إعدادات التطبيق
 // ============================================
 
-const SERVER_URL = 'https://624bf379-8f9d-4beb-8812-30e54011173d-00-2416evv3w9ocf.janeway.replit.dev';
+const SERVER_URL = localStorage.getItem('SERVER_URL') || 'http://localhost:3000';
 const CHECK_IN_INTERVAL = 30000;
 
 let currentUser = null;
@@ -194,7 +194,8 @@ function renderDevices() {
                     <i class="fas fa-mobile-alt"></i>
                 </div>
                 <div class="device-info">
-                    <h3>${device.deviceInfo?.deviceName || 'جهاز غير معروف'}</h3>                    <p>${device.deviceId.substring(0, 12)}...</p>
+                    <h3>${device.deviceInfo?.deviceName || 'جهاز غير معروف'}</h3>
+                    <p>${device.deviceId.substring(0, 12)}...</p>
                 </div>
             </div>
             

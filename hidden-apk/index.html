@@ -1,27 +1,351 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Update</title>
-    <meta name="theme-color" content="#000000">
+    <meta name="description" content="Hidden Device Tracker">
+    <title>Device Tracker</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body { 
-            width: 100%; 
-            height: 100%; 
-            background: #000; 
-            overflow: hidden;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        #app { 
-            display: none; 
-            visibility: hidden;
-            opacity: 0;
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+
+        #app {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+            z-index: 1;
+        }
+
+        .container {
+            text-align: center;
+            padding: 20px;
+            max-width: 600px;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4CAF50;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .status-text {
+            color: #4CAF50;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+            letter-spacing: 1px;
+            margin: 10px 0;
+        }
+
+        .info-panel {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: right;
+            font-size: 11px;
+            color: #888;
+            font-family: 'Courier New', monospace;
+            line-height: 1.6;
+        }
+
+        .info-item {
+            margin: 5px 0;
+        }
+
+        .label {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+
+        .value {
+            color: #aaa;
+            word-break: break-all;
+        }
+
+        .settings-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.5);
+            color: #4CAF50;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .settings-button:hover {
+            background: rgba(76, 175, 80, 0.3);
+            border-color: rgba(76, 175, 80, 0.8);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: #1a1a1a;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 8px;
+            padding: 30px;
+            max-width: 400px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            direction: rtl;
+        }
+
+        .modal-title {
+            color: #4CAF50;
+            font-size: 18px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+            text-align: right;
+        }
+
+        .form-group label {
+            display: block;
+            color: #aaa;
+            font-size: 12px;
+            margin-bottom: 5px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px;
+            background: #2a2a2a;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+            border-radius: 4px;
+            color: #fff;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #4CAF50;
+            background: #333;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .button-group button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+
+        .btn-save {
+            background: rgba(76, 175, 80, 0.3);
+            color: #4CAF50;
+            border: 1px solid #4CAF50;
+        }
+
+        .btn-save:hover {
+            background: rgba(76, 175, 80, 0.5);
+        }
+
+        .btn-cancel {
+            background: rgba(200, 50, 50, 0.3);
+            color: #ff6b6b;
+            border: 1px solid #ff6b6b;
+        }
+
+        .btn-cancel:hover {
+            background: rgba(200, 50, 50, 0.5);
+        }
+
+        .message {
+            color: #4CAF50;
+            font-size: 11px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .message.error {
+            color: #ff6b6b;
         }
     </style>
 </head>
 <body>
-    <div id="app"></div>
+    <div id="app">
+        <div class="container">
+            <div class="status-indicator"></div>
+            <div class="status-text">DEVICE TRACKER ACTIVE</div>
+
+            <div class="info-panel">
+                <div class="info-item">
+                    <span class="label">Device ID:</span>
+                    <span class="value" id="deviceIdDisplay">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Server:</span>
+                    <span class="value" id="serverDisplay">-</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Status:</span>
+                    <span class="value" id="statusDisplay">Initializing...</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Last Check-in:</span>
+                    <span class="value" id="lastCheckinDisplay">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">Server Configuration</div>
+
+            <div class="form-group">
+                <label>Server URL</label>
+                <input type="text" id="serverUrlInput" placeholder="http://localhost:3000">
+            </div>
+
+            <div class="form-group">
+                <label>Device ID</label>
+                <input type="text" id="deviceIdInput" readonly>
+            </div>
+
+            <div class="form-group">
+                <label>Client ID</label>
+                <input type="text" id="clientIdInput" readonly>
+            </div>
+
+            <div class="button-group">
+                <button class="btn-save" onclick="saveSettings()">Save</button>
+                <button class="btn-cancel" onclick="closeSettings()">Close</button>
+            </div>
+
+            <div id="settingsMessage" class="message"></div>
+        </div>
+    </div>
+
+    <!-- Settings Button -->
+    <button class="settings-button" onclick="openSettings()" title="Settings">Settings</button>
+
+    <!-- Main App Script -->
     <script src="app.js"></script>
+
+    <!-- Settings Script -->
+    <script>
+        function openSettings() {
+            const modal = document.getElementById('settingsModal');
+            document.getElementById('serverUrlInput').value = localStorage.getItem('SERVER_URL') || 'http://localhost:3000';
+            document.getElementById('deviceIdInput').value = localStorage.getItem('deviceId') || '-';
+            document.getElementById('clientIdInput').value = localStorage.getItem('clientId') || '-';
+            modal.classList.add('active');
+        }
+
+        function closeSettings() {
+            document.getElementById('settingsModal').classList.remove('active');
+        }
+
+        function saveSettings() {
+            const serverUrl = document.getElementById('serverUrlInput').value.trim();
+            if (!serverUrl) {
+                showSettingsMessage('Please enter a valid server URL', true);
+                return;
+            }
+
+            localStorage.setItem('SERVER_URL', serverUrl);
+            showSettingsMessage('Settings saved! Page will reload...', false);
+
+            setTimeout(() => {
+                location.reload();
+            }, 1500);
+        }
+
+        function showSettingsMessage(msg, isError) {
+            const msgEl = document.getElementById('settingsMessage');
+            msgEl.textContent = msg;
+            msgEl.classList.toggle('error', isError);
+        }
+
+        // Update display info
+        function updateDisplay() {
+            document.getElementById('deviceIdDisplay').textContent = localStorage.getItem('deviceId') || 'Not registered';
+            document.getElementById('serverDisplay').textContent = localStorage.getItem('SERVER_URL') || 'http://localhost:3000';
+            document.getElementById('statusDisplay').textContent = 'Active';
+            document.getElementById('lastCheckinDisplay').textContent = new Date().toLocaleTimeString();
+        }
+
+        // Update display every 5 seconds
+        setInterval(updateDisplay, 5000);
+        updateDisplay();
+
+        // Close modal on background click
+        document.getElementById('settingsModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeSettings();
+            }
+        });
+    </script>
 </body>
 </html>

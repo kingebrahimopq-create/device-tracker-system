@@ -1,23 +1,23 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
 import dotenv from 'dotenv';
 
-// تحميل المتغيرات البيئية
+// Load environment variables
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const HOST = process.env.HOST || '0.0.0.0'; // ✅ للاستماع على جميع الشبكات
+const HOST = process.env.HOST || '0.0.0.0';
 
 // ============================================
-// ⚙️ إعدادات الخادم
+// Server Configuration
 // ============================================
 
-app.use(cors({ origin: '*' })); // ✅ السماح بالاتصال من أي مكان (للتطوير)
+app.use(cors({ origin: '*' }));
 app.use(express.json());
 
-// قاعدة بيانات مؤقتة (في الذاكرة)
+// Database interface
 interface Client {
   deviceId: string;
   clientId: string;
@@ -30,62 +30,84 @@ interface Client {
 const clientsDB = new Map<string, Client>();
 
 // ============================================
-// 🔐 دوال التشفير (AES-256-CBC)
+// Encryption Functions (AES-256-CBC)
 // ============================================
 
 function generateEncryptionKey(): string {
-  return crypto.randomBytes(32).toString('hex'); // 32 بايت = 256 بت
+  return crypto.randomBytes(32).toString('hex');
 }
 
 function encryptData(data: any, key: string): string {
-  const algorithm = 'aes-256-cbc';
-  const keyBuffer = Buffer.from(key, 'hex');
-  const iv = crypto.randomBytes(16);
+  try {
+    const algorithm = 'aes-256-cbc';
+    const keyBuffer = Buffer.from(key, 'hex');
+    const iv = crypto.randomBytes(16);
 
-  const cipher = crypto.createCipheriv(algorithm, keyBuffer, iv);
-  let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'base64');
-  encrypted += cipher.final('base64');
+    const cipher = crypto.createCipheriv(algorithm, keyBuffer, iv);
+    let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'base64');
+    encrypted += cipher.final('base64');
 
-  // ✅ الصيغة: iv:encrypted (بدون tag)
-  return iv.toString('hex') + ':' + encrypted;}
+    return iv.toString('hex') + ':' + encrypted;
+  } catch (error: any) {
+    console.error('Encryption error:', error.message);
+    throw new Error('Failed to encrypt data');
+  }
+}
 
 function decryptData(encryptedData: string, key: string): any {
-  const algorithm = 'aes-256-cbc';
-  const keyBuffer = Buffer.from(key, 'hex');
-  const parts = encryptedData.split(':');
+  try {
+    const algorithm = 'aes-256-cbc';
+    const keyBuffer = Buffer.from(key, 'hex');
+    const parts = encryptedData.split(':');
 
-  if (parts.length < 2) throw new Error('صيغة غير صالحة');
+    if (parts.length < 2) throw new Error('Invalid encrypted data format');
 
-  const iv = Buffer.from(parts[0], 'hex');
-  const encrypted = parts.length === 3 ? parts[2] : parts[1];
+    const iv = Buffer.from(parts[0], 'hex');
+    const encrypted = parts.length === 3 ? parts[2] : parts[1];
 
-  const decipher = crypto.createDecipheriv(algorithm, keyBuffer, iv);
-  let decrypted = decipher.update(encrypted, 'base64', 'utf8');
-  decrypted += decipher.final('utf8');
+    const decipher = crypto.createDecipheriv(algorithm, keyBuffer, iv);
+    let decrypted = decipher.update(encrypted, 'base64', 'utf8');
+    decrypted += decipher.final('utf8');
 
-  return JSON.parse(decrypted);
+    return JSON.parse(decrypted);
+  } catch (error: any) {
+    console.error('Decryption error:', error.message);
+    // Try simple Base64 decoding for backward compatibility
+    try {
+      return JSON.parse(Buffer.from(encryptedData, 'base64').toString('utf8'));
+    } catch (e) {
+      throw new Error('Failed to decrypt data');
+    }
+  }
 }
 
 // ============================================
-// 🛣️ المسارات (API Routes)
+// API Routes
 // ============================================
 
-// صفحة رئيسية
+// Health check endpoint
 app.get('/', (req: Request, res: Response) => {
   res.json({
     success: true,
-    message: '🖥️ الخادم يعمل بنجاح',
+    message: 'Server is running successfully',
+    version: '2.0.0',
     timestamp: new Date(),
+    endpoints: {
+      register: 'POST /api/clients/register',
+      checkin: 'POST /api/clients/checkin',
+      report: 'POST /api/clients/report',
+      devices: 'GET /api/devices'
+    }
   });
 });
 
-// تسجيل جهاز جديد
+// Register new device
 app.post('/api/clients/register', (req: Request, res: Response) => {
   try {
     const { clientId, deviceInfo } = req.body;
 
     if (!clientId) {
-      return res.status(400).json({ success: false, error: 'clientId مطلوب' });
+      return res.status(400).json({ success: false, error: 'clientId is required' });
     }
 
     const deviceId = crypto.randomUUID();
@@ -96,92 +118,151 @@ app.post('/api/clients/register', (req: Request, res: Response) => {
       clientId,
       encryptionKey,
       deviceInfo,
-      registeredAt: new Date(),    };
+      registeredAt: new Date(),
+    };
 
     clientsDB.set(deviceId, client);
 
-    console.log(`✅ جهاز جديد: ${deviceId}`);
+    console.log(`✅ New device registered: ${deviceId}`);
+    console.log(`📱 Client ID: ${clientId}`);
+    console.log(`🔐 Encryption key: ${encryptionKey.substring(0, 16)}...`);
 
     res.json({
       success: true,
       deviceId,
       encryptionKey,
-      message: 'تم التسجيل بنجاح',
+      message: 'Device registered successfully',
+      timestamp: new Date(),
     });
   } catch (error: any) {
-    console.error('❌ خطأ في التسجيل:', error);
+    console.error('❌ Registration error:', error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// تسجيل الدخول (Check-in)
+// Device check-in
 app.post('/api/clients/checkin', (req: Request, res: Response) => {
   try {
     const { deviceId, encryptedData } = req.body;
 
     if (!deviceId || !encryptedData) {
-      return res.status(400).json({ success: false, error: 'بيانات ناقصة' });
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
     const client = clientsDB.get(deviceId);
     if (!client) {
-      return res.status(404).json({ success: false, error: 'الجهاز غير مسجل' });
+      return res.status(404).json({ success: false, error: 'Device not registered' });
     }
 
-    // فك تشفير البيانات الواردة
-    const decrypted = decryptData(encryptedData, client.encryptionKey);
-    console.log(`📡 Check-in من: ${deviceId}`, decrypted);
+    // Decrypt incoming data
+    let decrypted;
+    try {
+      decrypted = decryptData(encryptedData, client.encryptionKey);
+    } catch (decryptError) {
+      console.warn('⚠️ Decryption failed, attempting Base64 fallback');
+      try {
+        decrypted = JSON.parse(Buffer.from(encryptedData, 'base64').toString('utf8'));
+      } catch (e) {
+        throw decryptError;
+      }
+    }
 
-    // تحديث آخر اتصال
+    console.log(`📡 Check-in from: ${deviceId}`, decrypted);
+
+    // Update last check-in
     client.lastCheckIn = new Date();
     clientsDB.set(deviceId, client);
 
-    // تجهيز رد (مثلاً أوامر فارغة حالياً)
-    const responseData = { commands: [] };
-    const encryptedResponse = encryptData(responseData, client.encryptionKey);
+    // Prepare response
+    const responseData = { commands: [], timestamp: new Date() };
+    let encryptedResponse;
+    try {
+      encryptedResponse = encryptData(responseData, client.encryptionKey);
+    } catch (encryptError) {
+      // Fallback to Base64
+      encryptedResponse = Buffer.from(JSON.stringify(responseData)).toString('base64');
+    }
 
     res.json({
       success: true,
       encryptedData: encryptedResponse,
+      timestamp: new Date(),
     });
   } catch (error: any) {
-    console.error('❌ خطأ في check-in:', error);    res.status(500).json({ success: false, error: error.message });
+    console.error('❌ Check-in error:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// إرسال تقرير
+// Send report
 app.post('/api/clients/report', (req: Request, res: Response) => {
   try {
-    const { deviceId } = req.body;
-    console.log(`📊 تقرير من: ${deviceId}`);
-    res.json({ success: true, message: 'تم استلام التقرير' });
+    const { deviceId, type, data } = req.body;
+    console.log(`📊 Report from: ${deviceId}`, { type, data });
+    res.json({ 
+      success: true, 
+      message: 'Report received successfully',
+      timestamp: new Date(),
+    });
   } catch (error: any) {
     res.status(500).json({ success: false, error: error.message });
   }
 });
 
-// جلب جميع الأجهزة
+// Get all devices
 app.get('/api/devices', (req: Request, res: Response) => {
   const devices = Array.from(clientsDB.values()).map(c => ({
     deviceId: c.deviceId,
     clientId: c.clientId,
+    deviceInfo: c.deviceInfo,
     status: c.lastCheckIn ? 'active' : 'inactive',
     lastCheckIn: c.lastCheckIn,
+    registeredAt: c.registeredAt,
   }));
-  res.json({ success: true, count: devices.length, devices });
+  
+  res.json({ 
+    success: true, 
+    count: devices.length, 
+    devices,
+    timestamp: new Date()
+  });
 });
 
 // ============================================
-// 🚀 تشغيل الخادم
+// Error Handling
 // ============================================
 
-app.listen(PORT, HOST, () => {
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  console.error('❌ Unexpected error:', err);
+  res.status(500).json({ 
+    success: false, 
+    error: 'Server error',
+    message: err.message 
+  });
+});
+
+// 404 handler
+app.use((req: Request, res: Response) => {
+  res.status(404).json({
+    success: false,
+    error: 'Endpoint not found',
+    path: req.path,
+  });
+});
+
+// ============================================
+// Start Server
+// ============================================
+
+app.listen(PORT, HOST as string, () => {
   console.log('');
   console.log('════════════════════════════════════════');
-  console.log('  🖥️  الخادم يعمل بنجاح');
+  console.log('  🖥️  Device Tracker Server');
   console.log('════════════════════════════════════════');
-  console.log(`  🌐 العنوان: http://${HOST}:${PORT}`);
-  console.log(`  📡 محلي:     http://localhost:${PORT}`);
+  console.log(`  ✅ Server is running successfully`);
+  console.log(`  🌐 Address: http://${HOST}:${PORT}`);
+  console.log(`  📡 Local:   http://localhost:${PORT}`);
+  console.log(`  📊 Stats:   GET http://localhost:${PORT}/api/devices`);
   console.log('════════════════════════════════════════');
   console.log('');
 });
