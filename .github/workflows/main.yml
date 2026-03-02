@@ -11,12 +11,10 @@ jobs:
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
     
     - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '18'
+      uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d  # v3.8.1
     
     - name: Install dependencies
       run: |
@@ -26,7 +24,12 @@ jobs:
     - name: Setup web files
       run: |
         mkdir -p www
-        cp -r hidden-apk/* www/
+        if [ -d "hidden-apk" ]; then
+          cp -r hidden-apk/* www/
+        else
+          echo "hidden-apk directory not found"
+          exit 1
+        fi
     
     - name: Create Capacitor config
       run: |
@@ -53,13 +56,13 @@ jobs:
         ./gradlew assembleDebug
     
     - name: Upload APK
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce  # v3.1.2
       with:
         name: hidden-app-apk
         path: android/app/build/outputs/apk/debug/app-debug.apk
     
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844  # v1
       with:
         files: android/app/build/outputs/apk/debug/app-debug.apk
         tag_name: v${{ github.run_number }}
