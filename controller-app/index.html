@@ -7,9 +7,31 @@
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* ضمان ظهور الواجهة وعدم وجود أي إخفاء متعمد */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #f4f7f6;
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+        }
+        .screen {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+        .screen.active {
+            display: flex;
+            flex-direction: column;
+        }
+    </style>
 </head>
 <body>
-    <!-- شاشة التسجيل -->
+    <!-- شاشة تسجيل الدخول -->
     <div id="loginScreen" class="screen active">
         <div class="login-container">
             <div class="login-header">
@@ -17,58 +39,31 @@
                     <div class="logo-circle">
                         <i class="fas fa-satellite-dish"></i>
                     </div>
-                    <div class="logo-ring ring-1"></div>
-                    <div class="logo-ring ring-2"></div>
-                    <div class="logo-ring ring-3"></div>
                 </div>
-                <h1 class="app-title">Device Tracker</h1>
-                <p class="app-subtitle">نظام التحكم عن بعد الاحترافي</p>
+                <h1 class="app-title">Device Tracker Pro</h1>
+                <p class="app-subtitle">نظام التحكم والمراقبة الاحترافي</p>
             </div>
             
             <div class="login-form">
                 <div class="input-group">
-                    <label for="adminUsername">
-                        <i class="fas fa-user"></i>
-                        اسم المستخدم
-                    </label>
-                    <input 
-                        type="text" 
-                        id="adminUsername" 
-                        placeholder="أدخل اسم المستخدم"
-                        autocomplete="off"
-                    >
-                    <div class="input-border"></div>
+                    <label for="adminUsername">اسم المستخدم</label>
+                    <input type="text" id="adminUsername" placeholder="أدخل اسم المستخدم" value="admin">
                 </div>
                 
                 <div class="input-group">
-                    <label for="adminPassword">
-                        <i class="fas fa-lock"></i>
-                        كلمة المرور
-                    </label>
-                    <input 
-                        type="password" 
-                        id="adminPassword"                         placeholder="أدخل كلمة المرور"
-                        autocomplete="off"
-                    >
-                    <div class="input-border"></div>
+                    <label for="adminPassword">كلمة المرور</label>
+                    <input type="password" id="adminPassword" placeholder="أدخل كلمة المرور" value="admin">
                 </div>
                 
-                <button id="loginBtn" class="btn-login">
-                    <span class="btn-text">تسجيل الدخول</span>
-                    <span class="btn-icon"><i class="fas fa-arrow-left"></i></span>
-                    <div class="btn-shine"></div>
+                <button id="loginBtn" class="btn-login" onclick="handleLogin()">
+                    تسجيل الدخول
                 </button>
-                
-                <div class="login-footer">
-                    <p>الإصدار 2.0.0 Pro</p>
-                </div>
             </div>
         </div>
     </div>
 
     <!-- لوحة التحكم الرئيسية -->
     <div id="dashboardScreen" class="screen">
-        <!-- الهيدر -->
         <header class="dashboard-header">
             <div class="header-right">
                 <div class="menu-toggle" onclick="toggleSidebar()">
@@ -80,262 +75,112 @@
                 </div>
             </div>
             <div class="header-left">
-                <div class="connection-status" id="connectionStatus">
-                    <span class="status-dot"></span>
-                    <span class="status-text">متصل</span>
-                </div>
-                <div class="user-profile" onclick="toggleProfileMenu()">
-                    <div class="avatar">
-                        <i class="fas fa-user"></i>
-                    </div>
-                    <span class="username">Admin</span>
-                    <i class="fas fa-chevron-down"></i>
+                <div class="user-profile">
+                    <span id="displayUsername">Admin</span>
+                    <i class="fas fa-user-circle"></i>
                 </div>
             </div>
         </header>
 
-        <!-- القائمة الجانبية -->
-        <div class="sidebar" id="sidebar">
-            <div class="sidebar-header">                <h3>القائمة</h3>
-                <button class="close-sidebar" onclick="toggleSidebar()">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <nav class="sidebar-nav">
-                <a href="#" class="nav-item active" onclick="showSection('devices')">
-                    <i class="fas fa-mobile-alt"></i>
-                    <span>الأجهزة</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showSection('commands')">
-                    <i class="fas fa-terminal"></i>
-                    <span>الأوامر المخصصة</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showSection('logs')">
-                    <i class="fas fa-clipboard-list"></i>
-                    <span>السجلات</span>
-                </a>
-                <a href="#" class="nav-item" onclick="showSection('settings')">
-                    <i class="fas fa-cog"></i>
-                    <span>الإعدادات</span>
-                </a>
-            </nav>
-            <div class="sidebar-footer">
+        <div class="dashboard-body">
+            <!-- القائمة الجانبية -->
+            <nav class="sidebar" id="sidebar">
+                <div class="sidebar-nav">
+                    <a href="#" class="nav-item active" onclick="showSection('devices')">
+                        <i class="fas fa-mobile-alt"></i>
+                        <span>الأجهزة</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="showSection('commands')">
+                        <i class="fas fa-terminal"></i>
+                        <span>الأوامر</span>
+                    </a>
+                    <a href="#" class="nav-item" onclick="showSection('settings')">
+                        <i class="fas fa-cog"></i>
+                        <span>الإعدادات</span>
+                    </a>
+                </div>
                 <button class="btn-logout" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i>
-                    <span>تسجيل الخروج</span>
+                    <span>خروج</span>
                 </button>
-            </div>
-        </div>
+            </nav>
 
-        <!-- المحتوى الرئيسي -->
-        <main class="main-content">
-            <!-- قسم الأجهزة -->
-            <section id="devicesSection" class="section active">
-                <div class="section-header">
-                    <h2>
-                        <i class="fas fa-mobile-alt"></i>
-                        الأجهزة المتصلة
-                    </h2>
-                    <button class="btn-refresh" onclick="refreshDevices()">
-                        <i class="fas fa-sync-alt"></i>
-                        تحديث
-                    </button>
-                </div>
-                
-                <div class="devices-grid" id="devicesGrid">
-                    <!-- سيتم ملء الأجهزة هنا ديناميكياً -->
-                </div>
-            </section>
-            <!-- قسم الأوامر المخصصة -->
-            <section id="commandsSection" class="section">
-                <div class="section-header">
-                    <h2>
-                        <i class="fas fa-terminal"></i>
-                        الأوامر المخصصة
-                    </h2>
-                </div>
-                
-                <div class="command-panel">
-                    <div class="command-input-group">
-                        <label for="customCommand">
-                            <i class="fas fa-code"></i>
-                            كتابة كود الأمر
-                        </label>
-                        <textarea 
-                            id="customCommand" 
-                            placeholder="اكتب الأمر هنا... مثال: {&#123;"type": "get_location"&#125;}"
-                            rows="5"
-                        ></textarea>
-                        <div class="command-hints">
-                            <h4>أوامر سريعة:</h4>
-                            <div class="hint-buttons">
-                                <button class="hint-btn" onclick="insertCommand('get_location')">
-                                    <i class="fas fa-map-marker-alt"></i>
-                                    الموقع
-                                </button>
-                                <button class="hint-btn" onclick="insertCommand('get_system_info')">
-                                    <i class="fas fa-info-circle"></i>
-                                    معلومات النظام
-                                </button>
-                                <button class="hint-btn" onclick="insertCommand('take_screenshot')">
-                                    <i class="fas fa-camera"></i>
-                                    لقطة شاشة
-                                </button>
-                                <button class="hint-btn" onclick="insertCommand('get_contacts')">
-                                    <i class="fas fa-address-book"></i>
-                                    جهات الاتصال
-                                </button>
-                                <button class="hint-btn" onclick="insertCommand('get_sms')">
-                                    <i class="fas fa-sms"></i>
-                                    الرسائل
-                                </button>
-                                <button class="hint-btn" onclick="insertCommand('record_audio')">
-                                    <i class="fas fa-microphone"></i>
-                                    تسجيل صوتي
-                                </button>
-                            </div>
-                        </div>                    </div>
-                    
-                    <div class="command-actions">
-                        <button class="btn-send" onclick="sendCustomCommand()">
-                            <i class="fas fa-paper-plane"></i>
-                            إرسال الأمر
-                        </button>
-                        <button class="btn-clear" onclick="clearCommand()">
-                            <i class="fas fa-eraser"></i>
-                            مسح
-                        </button>
+            <!-- المحتوى الرئيسي -->
+            <main class="main-content">
+                <!-- قسم الأجهزة -->
+                <section id="devicesSection" class="section active">
+                    <div class="section-header">
+                        <h2>الأجهزة المتصلة</h2>
+                        <button class="btn-refresh" onclick="loadDevices()">تحديث</button>
                     </div>
-                    
-                    <div class="command-history" id="commandHistory">
-                        <h4>سجل الأوامر المرسلة</h4>
-                        <div class="history-list"></div>
+                    <div class="devices-grid" id="devicesGrid">
+                        <!-- سيتم تحميل الأجهزة هنا -->
                     </div>
-                </div>
-            </section>
+                </section>
 
-            <!-- قسم السجلات -->
-            <section id="logsSection" class="section">
-                <div class="section-header">
-                    <h2>
-                        <i class="fas fa-clipboard-list"></i>
-                        سجل النشاطات
-                    </h2>
-                    <button class="btn-clear-logs" onclick="clearAllLogs()">
-                        <i class="fas fa-trash"></i>
-                        مسح الكل
-                    </button>
-                </div>
-                
-                <div class="logs-container" id="logsContainer">
-                    <div class="log-empty">
-                        <i class="fas fa-inbox"></i>
-                        <p>لا توجد سجلات بعد</p>
+                <!-- قسم الأوامر -->
+                <section id="commandsSection" class="section">
+                    <div class="section-header">
+                        <h2>إرسال أمر مخصص</h2>
                     </div>
-                </div>
-            </section>
+                    <div class="command-box">
+                        <textarea id="customCommand" placeholder='{"type": "get_location"}' rows="5"></textarea>
+                        <div class="command-buttons">
+                            <button onclick="sendCustomCommand()">إرسال</button>
+                            <button class="secondary" onclick="clearCommand()">مسح</button>
+                        </div>
+                    </div>
+                </section>
 
-            <!-- قسم الإعدادات -->
-            <section id="settingsSection" class="section">
-                <div class="section-header">
-                    <h2>
-                        <i class="fas fa-cog"></i>
-                        الإعدادات
-                    </h2>
-                </div>
-                                <div class="settings-grid">
-                    <div class="setting-card">
-                        <div class="setting-icon">
-                            <i class="fas fa-server"></i>
-                        </div>
-                        <div class="setting-info">
-                            <h4>رابط الخادم</h4>
-                            <p id="serverUrlDisplay">---</p>
-                        </div>
-                        <button class="btn-edit" onclick="editServerUrl()">
-                            <i class="fas fa-edit"></i>
-                        </button>
+                <!-- قسم الإعدادات -->
+                <section id="settingsSection" class="section">
+                    <div class="section-header">
+                        <h2>إعدادات النظام</h2>
                     </div>
-                    
-                    <div class="setting-card">
-                        <div class="setting-icon">
-                            <i class="fas fa-clock"></i>
+                    <div class="settings-form">
+                        <div class="form-group">
+                            <label>رابط الخادم (Server URL)</label>
+                            <input type="text" id="settingServerUrl" placeholder="http://localhost:3000">
+                            <button onclick="saveServerSettings()">حفظ الإعدادات</button>
                         </div>
-                        <div class="setting-info">
-                            <h4>فترة الاتصال</h4>
-                            <p>30 ثانية</p>
-                        </div>
-                        <button class="btn-edit" onclick="editCheckInInterval()">
-                            <i class="fas fa-edit"></i>
-                        </button>
                     </div>
-                    
-                    <div class="setting-card">
-                        <div class="setting-icon">
-                            <i class="fas fa-bell"></i>
-                        </div>
-                        <div class="setting-info">
-                            <h4>الإشعارات</h4>
-                            <p>مفعلة</p>
-                        </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" checked>
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                    
-                    <div class="setting-card">
-                        <div class="setting-icon">
-                            <i class="fas fa-moon"></i>
-                        </div>
-                        <div class="setting-info">
-                            <h4>الوضع الليلي</h4>
-                            <p>تلقائي</p>
-                        </div>
-                        <label class="toggle-switch">                            <input type="checkbox" id="darkModeToggle">
-                            <span class="slider"></span>
-                        </label>
-                    </div>
-                </div>
-            </section>
-        </main>
-
-        <!-- ملف الجهاز المنبثق -->
-        <div class="modal" id="deviceModal">
-            <div class="modal-overlay" onclick="closeDeviceModal()"></div>
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>تفاصيل الجهاز</h3>
-                    <button class="modal-close" onclick="closeDeviceModal()">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-                <div class="modal-body" id="deviceModalBody">
-                    <!-- سيتم ملء البيانات هنا -->
-                </div>
-                <div class="modal-actions">
-                    <button class="btn-modal" onclick="sendCommandToDevice('get_location')">
-                        <i class="fas fa-map-marker-alt"></i>
-                        الموقع
-                    </button>
-                    <button class="btn-modal" onclick="sendCommandToDevice('get_system_info')">
-                        <i class="fas fa-info-circle"></i>
-                        معلومات
-                    </button>
-                    <button class="btn-modal btn-danger" onclick="sendCommandToDevice('wipe_data')">
-                        <i class="fas fa-trash"></i>
-                        مسح البيانات
-                    </button>
-                </div>
-            </div>
+                </section>
+            </main>
         </div>
     </div>
 
     <!-- الإشعارات -->
-    <div class="notification-container" id="notificationContainer"></div>
+    <div id="notificationContainer" class="notification-container"></div>
 
-    <!-- قوائم JavaScript -->
-    <script src="commands.js"></script>
     <script src="app.js"></script>
+    <script>
+        // دالة حفظ إعدادات الخادم من واجهة الإعدادات
+        function saveServerSettings() {
+            const url = document.getElementById('settingServerUrl').value.trim();
+            if (url) {
+                localStorage.setItem('SERVER_URL', url);
+                showNotification('تم حفظ رابط الخادم بنجاح', 'success');
+                setTimeout(() => location.reload(), 1000);
+            }
+        }
+        
+        // تحديث حقل الرابط عند فتح الإعدادات
+        function updateSettingsUI() {
+            document.getElementById('settingServerUrl').value = localStorage.getItem('SERVER_URL') || '';
+        }
+        
+        // ربط الدوال الإضافية
+        const originalShowSection = window.showSection;
+        window.showSection = function(id) {
+            if (id === 'settings') updateSettingsUI();
+            if (typeof originalShowSection === 'function') originalShowSection(id);
+            else {
+                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+                document.getElementById(id + 'Section').classList.add('active');
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                event.currentTarget.classList.add('active');
+            }
+        };
+    </script>
 </body>
 </html>
