@@ -3,11 +3,14 @@ import crypto from 'crypto';
 
 /**
  * ⚙️ إعدادات الخادم
- * هام: غير الرابط أدناه بالرابط بتاع مشروعك على Glitch
+ * هام: غيّر الرابط أدناه بالرابط بتاع مشروعك على Replit/Render
  */
 const SERVER_CONFIG = {
-  // ✅ حط رابط Glitch هنا (مثال: https://my-project.glitch.me)
-  URL: 'https://YOUR_GLITCH_URL.glitch.me', 
+  // ✅ حط رابط الخادم هنا (مثال من Replit)
+  URL: 'https://device-tracker.username.repl.co',
+  
+  // أو من Render:
+  // URL: 'https://device-tracker.onrender.com',
   
   TIMEOUT: 10000, // 10 ثواني
 };
@@ -44,10 +47,10 @@ class ClientService {
       ...config,
     };
 
-    this.axiosInstance = axios.create({
-      baseURL: this.config.serverUrl,
+    this.axiosInstance = axios.create({      baseURL: this.config.serverUrl,
       timeout: SERVER_CONFIG.TIMEOUT,
-      headers: {        'Content-Type': 'application/json',
+      headers: {
+        'Content-Type': 'application/json',
       },
     });
 
@@ -93,9 +96,9 @@ class ClientService {
         console.error('⚠️ خطأ في الطلب:', error.message);
       }
       
-      throw error;
-    }
+      throw error;    }
   }
+
   /**
    * تشفير البيانات باستخدام AES-256-CBC ✅
    */
@@ -143,9 +146,9 @@ class ClientService {
 
       let decrypted = decipher.update(encrypted, 'base64', 'utf8');
       decrypted += decipher.final('utf8');
-
       return JSON.parse(decrypted);
-    } catch (error) {      console.error('🔓 فشل في فك تشفير البيانات:', error);
+    } catch (error) {
+      console.error('🔓 فشل في فك تشفير البيانات:', error);
       throw error;
     }
   }
@@ -191,10 +194,10 @@ class ClientService {
       };
 
       const encryptedData = this.encryptData(payload);
-
       await this.axiosInstance.post('/api/clients/report', {
         deviceId: this.deviceId,
-        encryptedData,      });
+        encryptedData,
+      });
 
       console.log('✓ تم إرسال التقرير');
     } catch (error) {
@@ -240,10 +243,10 @@ class ClientService {
   private async processCommands(commands: any[]): Promise<void> {
     const results: any[] = [];
     const logs: any[] = [];
-
     for (const command of commands) {
       try {
         console.log(`⚙️ معالجة الأمر: ${command.type}`);
+
         let result;
         switch (command.type) {
           case 'get_system_info':
@@ -290,9 +293,9 @@ class ClientService {
 
     await this.reportResults(results, logs);
   }
-
   /**
-   * الحصول على معلومات النظام   */
+   * الحصول على معلومات النظام
+   */
   private async getSystemInfo(): Promise<any> {
     return {
       deviceName: process.env.DEVICE_NAME || 'Android Device',
@@ -338,10 +341,10 @@ class ClientService {
 
   /**
    * الحصول على معرف الجهاز
-   */
-  getDeviceId(): string {
+   */  getDeviceId(): string {
     return this.deviceId;
   }
+
   /**
    * الحصول على مفتاح التشفير
    */
