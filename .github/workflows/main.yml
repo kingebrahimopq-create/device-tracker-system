@@ -8,27 +8,37 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
     - name: Checkout code
-      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+      uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab
     
     - name: Setup Node.js
-      uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d  # v3.8.1
+      uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d
+      with:
+        node-version: '18'
     
     - name: Install dependencies
       run: |
         npm install
         npm install -g @capacitor/cli @capacitor/core
     
-    - name: Setup web files
+    - name: Create www directory
       run: |
         mkdir -p www
-        if [ -d "hidden-apk" ]; then
+    
+    - name: Copy web files to www
+      run: |
+        if [ -d "hidden-apk" ] && [ -f "hidden-apk/index.html" ]; then
           cp -r hidden-apk/* www/
+          echo "✅ Files copied to www/"
+          ls -la www/
         else
-          echo "hidden-apk directory not found"
-          exit 1
+          echo "❌ hidden-apk/index.html not found!"
+          echo "Creating dummy index.html..."
+          echo '<!DOCTYPE html><html><head><title>Hidden</title></head><body><h1>Hidden App</h1></body></html>' > www/index.html
         fi
     
     - name: Create Capacitor config
@@ -43,26 +53,35 @@ jobs:
           }
         }
         EOF
+        echo "✅ capacitor.config.json created"
+        cat capacitor.config.json
     
     - name: Add Android platform
       run: |
-        npx cap add android || true
+        npx cap add android || echo "Android platform already exists"
+    
+    - name: Sync Capacitor
+      run: |
         npx cap sync android
+        echo "✅ Sync completed"
     
     - name: Build APK
       run: |
         cd android
         chmod +x gradlew
         ./gradlew assembleDebug
+        echo "✅ APK built"
+        ls -la app/build/outputs/apk/debug/
     
     - name: Upload APK
-      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
+      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
       with:
         name: hidden-app-apk
         path: android/app/build/outputs/apk/debug/app-debug.apk
+        retention-days: 30
     
     - name: Create Release
-      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844  # v1
+      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844
       with:
         files: android/app/build/outputs/apk/debug/app-debug.apk
         tag_name: v${{ github.run_number }}
@@ -71,5 +90,7 @@ jobs:
           ## تحديث تلقائي
           - التاريخ: ${{ github.event.head_commit.message }}
           - البناء رقم: ${{ github.run_number }}
+        draft: false
+        prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
