@@ -1,15 +1,14 @@
 import crypto from 'crypto';
 
 /**
- * نظام التشفير المتقدم للاتصالات الآمنة
- * استخدام AES-256-GCM للتشفير والمصادقة
+ * نظام التشفير الموحد للاتصالات الآمنة
+ * تم التبديل إلى AES-256-CBC لضمان التوافق مع React Native (CryptoJS)
  */
 
 export class EncryptionService {
-  private algorithm = 'aes-256-gcm';
+  private algorithm = 'aes-256-cbc';
   private keyLength = 32; // 256 bits
   private ivLength = 16; // 128 bits
-  private tagLength = 16; // 128 bits
 
   /**
    * توليد مفتاح تشفير عشوائي فريد
@@ -28,8 +27,8 @@ export class EncryptionService {
   /**
    * تشفير البيانات
    * @param data البيانات المراد تشفيرها
-   * @param key المفتاح السري
-   * @returns البيانات المشفرة مع IV و Tag
+   * @param key المفتاح السري (hex)
+   * @returns البيانات المشفرة بتنسيق IV:Data
    */
   encrypt(data: string, key: string): string {
     try {
@@ -37,13 +36,11 @@ export class EncryptionService {
       const iv = crypto.randomBytes(this.ivLength);
       
       const cipher = crypto.createCipheriv(this.algorithm, keyBuffer, iv);
-      let encrypted = cipher.update(data, 'utf8', 'hex');
-      encrypted += cipher.final('hex');
+      let encrypted = cipher.update(data, 'utf8', 'base64');
+      encrypted += cipher.final('base64');
       
-      const tag = cipher.getAuthTag();
-      
-      // دمج IV و Tag والبيانات المشفرة
-      const result = iv.toString('hex') + ':' + tag.toString('hex') + ':' + encrypted;
+      // دمج IV والبيانات المشفرة
+      const result = iv.toString('hex') + ':' + encrypted;
       return result;
     } catch (error) {
       console.error('Encryption error:', error);
@@ -53,8 +50,8 @@ export class EncryptionService {
 
   /**
    * فك تشفير البيانات
-   * @param encryptedData البيانات المشفرة
-   * @param key المفتاح السري
+   * @param encryptedData البيانات المشفرة بتنسيق IV:Data
+   * @param key المفتاح السري (hex)
    * @returns البيانات الأصلية
    */
   decrypt(encryptedData: string, key: string): string {
@@ -62,18 +59,17 @@ export class EncryptionService {
       const keyBuffer = Buffer.from(key, 'hex');
       const parts = encryptedData.split(':');
       
-      if (parts.length !== 3) {
+      if (parts.length < 2) {
         throw new Error('صيغة البيانات المشفرة غير صحيحة');
       }
       
       const iv = Buffer.from(parts[0], 'hex');
-      const tag = Buffer.from(parts[1], 'hex');
-      const encrypted = parts[2];
+      // في حال وجود Tag (من إصدارات سابقة)، نأخذ الجزء الأخير كبيانات مشفرة
+      const encrypted = parts[parts.length - 1];
       
       const decipher = crypto.createDecipheriv(this.algorithm, keyBuffer, iv);
-      decipher.setAuthTag(tag);
       
-      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+      let decrypted = decipher.update(encrypted, 'base64', 'utf8');
       decrypted += decipher.final('utf8');
       
       return decrypted;
@@ -85,8 +81,6 @@ export class EncryptionService {
 
   /**
    * توليد توقيع رقمي HMAC
-   * @param data البيانات
-   * @param key المفتاح السري
    */
   generateSignature(data: string, key: string): string {
     const hmac = crypto.createHmac('sha256', key);
@@ -96,9 +90,6 @@ export class EncryptionService {
 
   /**
    * التحقق من التوقيع الرقمي
-   * @param data البيانات
-   * @param signature التوقيع
-   * @param key المفتاح السري
    */
   verifySignature(data: string, signature: string, key: string): boolean {
     const expectedSignature = this.generateSignature(data, key);
@@ -110,7 +101,6 @@ export class EncryptionService {
 
   /**
    * توليد hash SHA-256
-   * @param data البيانات
    */
   hash(data: string): string {
     return crypto.createHash('sha256').update(data).digest('hex');
