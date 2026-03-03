@@ -1,295 +1,188 @@
+// server/index.js – الخادم المركزي + لوحة التحكم
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
+const session = require('express-session');
+const bodyParser = require('body-parser');
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// ========== الإعدادات العامة ==========
 app.use(cors());
-app.use(express.json());
+app.use(bodyParser.json({ limit: '10mb' }));
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(express.static(path.join(__dirname, 'public'))); // للملفات الثابتة (اختياري)
 
-// In-memory databases
-const clientsDB = new Map();
-const commandsQueue = new Map();
+// إدارة الجلسات (للمصادقة)
+app.use(session({
+    secret: 'supersecretkey2024',
+    resave: false,
+    saveUninitialized: true,
+    cookie: { secure: false } // ضع true إذا كنت تستخدم HTTPS
+}));
 
-// Generate encryption key
-function generateEncryptionKey() {
-    return crypto.randomBytes(32).toString('hex');
+// ========== قاعدة البيانات المؤقتة (في الذاكرة) ==========
+let devices = {}; // مفتاح: deviceId، القيمة: معلومات الجهاز + قائمة الأوامر
+let adminLoggedIn = false; // نبسطها، لكن الأفضل استخدام session
+
+// المفاتيح الثابتة (يمكن تحسينها)
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = 'Tracker@2099';
+
+// ========== دوال مساعدة ==========
+// توليد مفتاح تشفير فريد لكل جهاز
+function generateDeviceKey(deviceId) {
+    return crypto.createHash('sha256').update(deviceId + 'globalSalt').digest('hex').substring(0, 32);
 }
 
-// Encrypt data
-function encryptData(data, key) {
-    try {
-        const algorithm = 'aes-256-cbc';
-        const keyBuffer = Buffer.from(key, 'hex');
-        const iv = crypto.randomBytes(16);
-        const cipher = crypto.createCipheriv(algorithm, keyBuffer, iv);
-        let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'base64');
-        encrypted += cipher.final('base64');
-        return iv.toString('hex') + ':' + encrypted;
-    } catch (error) {
-        console.error('Encryption error:', error);
-        return Buffer.from(JSON.stringify(data)).toString('base64');
+// تشفير AES-256-CBC
+function encrypt(text, key) {
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(key, 'utf8'), iv);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return iv.toString('hex') + ':' + encrypted;
+}
+
+function decrypt(encryptedText, key) {
+    const parts = encryptedText.split(':');
+    const iv = Buffer.from(parts[0], 'hex');
+    const encrypted = parts[1];
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key, 'utf8'), iv);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return decrypted;
+}
+
+// التحقق من المصادقة (لصفحات الإدارة)
+function requireAuth(req, res, next) {
+    if (req.session.loggedIn) {
+        next();
+    } else {
+        res.redirect('/login');
     }
 }
 
-// Health check endpoint
-app.get('/', (req, res) => {
-    res.json({ 
-        status: 'ok', 
-        message: 'Device Tracker Server v2.0',
-        timestamp: new Date().toISOString(),
-        uptime: process.uptime()
-    });
-});
+// ========== مسارات API للأجهزة ==========
+// تسجيل جهاز جديد
+app.post('/api/register', (req, res) => {
+    const { deviceId, model, os, manufacturer } = req.body;
+    if (!deviceId) return res.status(400).json({ error: 'deviceId مطلوب' });
 
-// Register new device
-app.post('/api/clients/register', (req, res) => {
-    try {
-        const { clientId, deviceInfo } = req.body;        
-        if (!clientId) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'clientId is required' 
-            });
-        }
-        
-        const deviceId = 'device_' + crypto.randomUUID();
-        const encryptionKey = generateEncryptionKey();
-        
-        const clientData = {
+    const key = generateDeviceKey(deviceId);
+    if (!devices[deviceId]) {
+        devices[deviceId] = {
             deviceId,
-            clientId,
-            encryptionKey,
-            deviceInfo: deviceInfo || {},
-            registeredAt: new Date().toISOString(),
-            lastCheckIn: null,
-            status: 'active'
+            model: model || 'unknown',
+            os: os || 'unknown',
+            manufacturer: manufacturer || 'unknown',
+            firstSeen: new Date().toISOString(),
+            lastCheckin: null,
+            battery: null,
+            network: null,
+            location: null,
+            commands: [] // قائمة الأوامر المرسلة (لم يتم تنفيذها بعد)
         };
-        
-        clientsDB.set(deviceId, clientData);
-        commandsQueue.set(deviceId, []);
-        
-        console.log('✅ New device registered:', deviceId);
-        console.log('   Client ID:', clientId);
-        
-        res.json({ 
-            success: true, 
-            deviceId, 
-            encryptionKey,
-            message: 'Device registered successfully'
-        });
-    } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
-        });
     }
+    res.json({ status: 'registered', deviceId, key });
 });
 
-// Device check-in
-app.post('/api/clients/checkin', (req, res) => {
-    try {
-        const { deviceId, encryptedData } = req.body;
-        
-        if (!deviceId) {
-            return res.status(400).json({ 
-                success: false,                 error: 'deviceId is required' 
-            });
-        }
-        
-        const client = clientsDB.get(deviceId);
-        
-        if (!client) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Device not found' 
-            });
-        }
-        
-        // Update last check-in time
-        client.lastCheckIn = new Date().toISOString();
-        client.status = 'active';
-        clientsDB.set(deviceId, client);
-        
-        // Get pending commands
-        const pendingCommands = commandsQueue.get(deviceId) || [];
-        
-        // Clear the queue after retrieving
-        if (pendingCommands.length > 0) {
-            commandsQueue.set(deviceId, []);
-        }
-        
-        // Prepare response
-        const responseData = { 
-            commands: pendingCommands,
-            timestamp: new Date().toISOString()
-        };
-        
-        // Encrypt response
-        const encryptedResponse = encryptData(responseData, client.encryptionKey);
-        
-        res.json({ 
-            success: true, 
-            encryptedData: encryptedResponse,
-            commandCount: pendingCommands.length
-        });
-        
-    } catch (error) {
-        console.error('Check-in error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
-        });
-    }
-});
-// Get all devices
-app.get('/api/devices', (req, res) => {
-    try {
-        const devices = Array.from(clientsDB.values()).map(client => ({
-            deviceId: client.deviceId,
-            clientId: client.clientId,
-            status: client.status,
-            registeredAt: client.registeredAt,
-            lastCheckIn: client.lastCheckIn,
-            isOnline: client.lastCheckIn && (Date.now() - new Date(client.lastCheckIn).getTime()) < 60000,
-            deviceInfo: client.deviceInfo
-        }));
-        
-        res.json({ 
-            success: true, 
-            count: devices.length, 
-            devices,
-            timestamp: new Date().toISOString()
-        });
-        
-    } catch (error) {
-        console.error('Get devices error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
-        });
-    }
-});
+// Check-in دوري (يرسل الجهاز حالته ويستقبل الأوامر)
+app.post('/api/checkin', (req, res) => {
+    const { deviceId, battery, network, location } = req.body;
+    if (!deviceId) return res.status(400).json({ error: 'deviceId مطلوب' });
 
-// Send command to device
-app.post('/api/devices/:deviceId/command', (req, res) => {
-    try {
-        const { deviceId } = req.params;
-        const { type, action, payload } = req.body;
-        
-        const client = clientsDB.get(deviceId);
-        
-        if (!client) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Device not found' 
-            });
-        }
-        
-        const command = {
-            id: 'cmd_' + crypto.randomUUID(),
-            type: type || 'custom',
-            action: action || null,
-            payload: payload || {},
-            createdAt: new Date().toISOString(),            status: 'pending'
-        };
-        
-        // Initialize queue if not exists
-        if (!commandsQueue.has(deviceId)) {
-            commandsQueue.set(deviceId, []);
-        }
-        
-        // Add command to queue
-        commandsQueue.get(deviceId).push(command);
-        
-        console.log(`📤 Command queued for ${deviceId}:`, command.id);
-        
-        res.json({ 
-            success: true, 
-            command, 
-            message: 'Command queued successfully',
-            queueLength: commandsQueue.get(deviceId).length
-        });
-        
-    } catch (error) {
-        console.error('Send command error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
-        });
+    const device = devices[deviceId];
+    if (!device) {
+        return res.status(404).json({ error: 'جهاز غير مسجل' });
     }
-});
 
-// Get device status
-app.get('/api/devices/:deviceId/status', (req, res) => {
-    try {
-        const { deviceId } = req.params;
-        
-        const client = clientsDB.get(deviceId);
-        
-        if (!client) {
-            return res.status(404).json({ 
-                success: false, 
-                error: 'Device not found' 
-            });
-        }
-        
-        const queueLength = (commandsQueue.get(deviceId) || []).length;
-        
-        res.json({
-            success: true,
-            device: {
-                deviceId: client.deviceId,
-                clientId: client.clientId,                status: client.status,
-                registeredAt: client.registeredAt,
-                lastCheckIn: client.lastCheckIn,
-                isOnline: client.lastCheckIn && (Date.now() - new Date(client.lastCheckIn).getTime()) < 60000,
-                pendingCommands: queueLength
-            }
-        });
-        
-    } catch (error) {
-        console.error('Get status error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: error.message 
-        });
-    }
-});
+    // تحديث آخر معلومات
+    device.lastCheckin = new Date().toISOString();
+    if (battery) device.battery = battery;
+    if (network) device.network = network;
+    if (location) device.location = location;
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-    console.error('Server error:', err);
-    res.status(500).json({ 
-        success: false, 
-        error: 'Internal server error' 
+    // إرجاع الأوامر المعلقة (ثم حذفها)
+    const pendingCommands = [...device.commands];
+    device.commands = []; // مسح الأوامر بعد إرسالها
+
+    res.json({
+        status: 'ok',
+        commands: pendingCommands
     });
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-    console.log('═══════════════════════════════════════════════');
-    console.log('   🖥️  Device Tracker Server v2.0');
-    console.log('═══════════════════════════════════════════════');
-    console.log(`   ✅ Server running successfully`);
-    console.log(`   🌐 Address: http://0.0.0.0:${PORT}`);
-    console.log(`   📡 Local:   http://localhost:${PORT}`);
-    console.log(`   🕐 Started: ${new Date().toLocaleString()}`);
-    console.log('═══════════════════════════════════════════════');
+// إرسال نتيجة تنفيذ أمر (من الجهاز)
+app.post('/api/command-result', (req, res) => {
+    const { deviceId, command, result, error } = req.body;
+    console.log(`[نتيجة أمر] الجهاز ${deviceId} الأمر ${command}: ${result ? 'نجاح' : 'فشل'}`, error || '');
+    // هنا يمكن تخزين النتائج في سجل النشاطات (للتوسع)
+    res.json({ received: true });
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-    console.log(' SIGTERM received. Shutting down gracefully...');
-    process.exit(0);
+// ========== مسارات لوحة التحكم (مع المصادقة) ==========
+// صفحة تسجيل الدخول
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-process.on('SIGINT', () => {
-    console.log('👋 SIGINT received. Shutting down gracefully...');
-    process.exit(0);
+// معالجة تسجيل الدخول
+app.post('/login', (req, res) => {
+    const { username, password } = req.body;
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+        req.session.loggedIn = true;
+        res.redirect('/dashboard');
+    } else {
+        res.send('<h1>خطأ في اسم المستخدم أو كلمة المرور</h1><a href="/login">عودة</a>');
+    }
 });
 
-module.exports = app;
+// تسجيل الخروج
+app.get('/logout', (req, res) => {
+    req.session.destroy();
+    res.redirect('/login');
+});
+
+// لوحة التحكم الرئيسية
+app.get('/dashboard', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+});
+
+// واجهة برمجة للحصول على قائمة الأجهزة (JSON)
+app.get('/api/devices', requireAuth, (req, res) => {
+    res.json(devices);
+});
+
+// إرسال أمر إلى جهاز معين
+app.post('/api/send-command', requireAuth, (req, res) => {
+    const { deviceId, command, parameters } = req.body;
+    if (!deviceId || !command) {
+        return res.status(400).json({ error: 'deviceId و command مطلوبان' });
+    }
+    const device = devices[deviceId];
+    if (!device) {
+        return res.status(404).json({ error: 'الجهاز غير موجود' });
+    }
+
+    // إضافة الأمر إلى قائمة انتظار الجهاز
+    const cmdObj = {
+        id: Date.now().toString(36) + Math.random().toString(36).substr(2),
+        command,
+        parameters: parameters || {},
+        timestamp: new Date().toISOString()
+    };
+    device.commands.push(cmdObj);
+
+    // يمكن إضافة سجل نشاطات (اختياري)
+    console.log(`[أمر] إرسال الأمر ${command} إلى ${deviceId}`);
+
+    res.json({ status: 'queued', commandId: cmdObj.id });
+});
+
+// ========== تشغيل الخادم ==========
+app.listen(PORT, () => {
+    console.log(`🚀 الخادم يعمل على http://localhost:${PORT}`);
+});
