@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>تسجيل الدخول - Device Tracker</title>
+    <style>/* نفس التنسيق السابق */</style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>🔐 Device Tracker v2.0</h1>
+        <form id="loginForm">
+            <div class="input-group">
+                <label>اسم المستخدم</label>
+                <input type="text" id="username" placeholder="admin" required>
+            </div>
+            <div class="input-group">
+                <label>كلمة المرور</label>
+                <input type="password" id="password" placeholder="••••••••" required>
+            </div>
+            <button type="submit">دخول</button>
+        </form>
+        <div id="error" style="color: red; margin-top: 10px;"></div>
+    </div>
+
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            const res = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                localStorage.setItem('token', data.token);
+                window.location.href = '/dashboard.html';
+            } else {
+                document.getElementById('error').innerText = data.error || 'خطأ في الدخول';
+            }
+        });
+    </script>
+</body>
+</html>
