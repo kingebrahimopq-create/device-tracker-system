@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <title>لوحة التحكم - Device Tracker</title>
+    <style>/* نفس التنسيق السابق */</style>
+</head>
+<body>
+    <div class="navbar">
+        <h2>📱 Device Tracker v2.0 – لوحة التحكم</h2>
+        <button id="logoutBtn">تسجيل الخروج</button>
+    </div>
+
+    <div class="container">
+        <!-- الإحصائيات -->
+        <div class="stats">
+            <div class="stat-card"><h3>إجمالي الأجهزة</h3><div class="value" id="totalDevices">0</div></div>
+            <div class="stat-card"><h3>متصل الآن</h3><div class="value" id="onlineDevices">0</div></div>
+            <div class="stat-card"><h3>أوامر معلقة</h3><div class="value" id="pendingCommands">0</div></div>
+        </div>
+
+        <div class="devices-header">
+            <h3>📋 الأجهزة المسجلة</h3>
+            <button class="refresh-btn" onclick="fetchDevices()">🔄 تحديث</button>
+        </div>
+
+        <div id="devicesContainer" class="devices-grid"></div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>
