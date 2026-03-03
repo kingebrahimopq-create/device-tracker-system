@@ -13,12 +13,10 @@ const DEVICE_ID = process.env.DEVICE_ID;
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
 const CHECK_IN_INTERVAL = parseInt(process.env.CHECK_IN_INTERVAL || '30', 10);
 
-console.log(`
-╔════════════════════════════════════════╗
-║   Device Tracker - Client Application  ║
-║   تطبيق العميل - متتبع الأجهزة        ║
-╚════════════════════════════════════════╝
-`);
+console.log(`╔════════════════════════════════════════╗
+║ Device Tracker - Client Application ║
+║ تطبيق العميل - متتبع الأجهزة ║
+╚════════════════════════════════════════╝`);
 
 /**
  * الحصول على معلومات النظام
@@ -45,7 +43,7 @@ async function initializeClient() {
   try {
     console.log(`📍 الخادم: ${SERVER_URL}`);
     console.log(`🔑 معرف العميل: ${CLIENT_ID}`);
-    console.log(`⏱️  فترة الاتصال: ${CHECK_IN_INTERVAL} ثانية\n`);
+    console.log(`⏱️ فترة الاتصال: ${CHECK_IN_INTERVAL} ثانية\n`);
 
     // إنشاء خدمة العميل
     const client = new ClientService({
@@ -71,13 +69,13 @@ async function initializeClient() {
 
     // معالجة إشارات الإيقاف
     process.on('SIGINT', () => {
-      console.log('\n\n⏹️  إيقاف تطبيق العميل...');
+      console.log('\n\n⏹️ إيقاف تطبيق العميل...');
       client.stopCheckInService();
       process.exit(0);
     });
 
     process.on('SIGTERM', () => {
-      console.log('\n\n⏹️  إيقاف تطبيق العميل...');
+      console.log('\n\n⏹️ إيقاف تطبيق العميل...');
       client.stopCheckInService();
       process.exit(0);
     });
