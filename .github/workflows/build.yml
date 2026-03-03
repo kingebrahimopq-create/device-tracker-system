@@ -58,23 +58,27 @@ jobs:
           }
           EOF
 
-      - name: Add Android platform with retry and bypass
+      - name: Add Android platform
         env:
           JAVA_TOOL_OPTIONS: "-Dhttps.protocols=TLSv1.2,TLSv1.3 -Djavax.net.ssl.trustStore=NUL"
+        run: npx cap add android
+
+      - name: Sync Capacitor
+        env:
+          JAVA_TOOL_OPTIONS: "-Dhttps.protocols=TLSv1.2,TLSv1.3 -Djavax.net.ssl.trustStore=NUL"
+        run: npx cap sync
+
+      - name: Install Gradle (if missing)
         run: |
-          # إضافة منصة android مع تجاهل SSL
-          npx cap add android || {
-            echo "First attempt failed. Retrying with extra flags..."
-            npx cap add android --no-sync
-            npx cap sync
-          }
+          if ! command -v gradle &> /dev/null; then
+            sudo apt update && sudo apt install -y gradle
+          fi
 
       - name: Ensure gradlew exists
         run: |
           if [ ! -f android/gradlew ]; then
-            echo "gradlew still missing. Generating wrapper manually..."
+            echo "gradlew missing. Generating with gradle wrapper..."
             cd android
-            # إنشاء gradle wrapper باستخدام gradle المثبت
             gradle wrapper --gradle-version 8.0.2
             chmod +x gradlew
           fi
