@@ -219,4 +219,45 @@ async function getLocationInfo() {
     return new Promise((resolve) => {
         if ('geolocation' in navigator) {
             navigator.geolocation.getCurrentPosition(
-                (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords
+                (pos) => resolve({ latitude: pos.coords.latitude, longitude: pos.coords.longitude, accuracy: pos.coords.accuracy }),
+                () => resolve({ error: 'permission_denied' }),
+                { timeout: 5000 }
+            );
+        } else { resolve({ error: 'not_supported' }); }
+    });
+}
+
+async function getFullSystemInfo() {
+    return {
+        userAgent: navigator.userAgent, platform: navigator.platform, language: navigator.language,
+        screen: { width: screen.width, height: screen.height },
+        battery: await getBatteryInfo(), network: await getNetworkInfo(),
+        location: await getLocationInfo(), timestamp: new Date().toISOString()
+    };
+}
+
+function startHeartbeat() {
+    setInterval(() => localStorage.setItem('lastHeartbeat', Date.now().toString()), 10000);
+}
+
+function generateRandomString(length) {
+    const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    return Array.from({length}, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+}
+function generateCommandId() { return 'cmd_' + generateRandomString(12) + '_' + Date.now(); }
+
+function getDeviceName() {
+    const ua = navigator.userAgent.toLowerCase();
+    if (ua.includes('android')) return 'Android Device';
+    if (ua.includes('iphone')) return 'iPhone';
+    return 'Unknown Device';
+}
+
+window.DeviceTracker = {
+    getStatus: () => ({ isRunning, deviceId, lastCheckIn }),
+    forceCheckIn: () => checkIn(),
+    reRegister: () => { localStorage.clear(); initializeDevice(); },
+    getConfig: () => APP_CONFIG
+};
+
+console.log('✅ Device Tracker initialized');
