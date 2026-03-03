@@ -461,4 +461,56 @@ ${JSON.stringify(config, null, 2)}
                 }
                 if (navigator.connection) {
                     document.getElementById('network').textContent =
-                        navigator
+                                                navigator.connection.effectiveType || 'unknown';
+                }
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        p => document.getElementById('location').textContent = '📍 ' +
+                            p.coords.latitude.toFixed(4) + ', ' + p.coords.longitude.toFixed(4),
+                        () => document.getElementById('location').textContent = '❌'
+                    );
+                }
+            }
+
+            function init() {
+                updateStatus('connecting', 'جاري الاتصال...');
+                checkIn();
+                updateDeviceInfo();
+                setInterval(checkIn, config.server.checkInInterval);
+                setInterval(updateDeviceInfo, 60000);
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    <\/script>
+</body>
+</html>`;
+
+            document.getElementById('outputCode').textContent = htmlCode;
+            document.getElementById('outputSection').style.display = 'block';
+        }
+
+        function copyCode() {
+            const code = document.getElementById('outputCode').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                alert('تم نسخ الكود!');
+            });
+        }
+
+        function downloadHtml() {
+            const code = document.getElementById('outputCode').textContent;
+            const blob = new Blob([code], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+    </script>
+</body>
+</html>
