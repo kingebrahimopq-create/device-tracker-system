@@ -1,13 +1,15 @@
 {
   "appId": "com.system.service",
-  "appName": "System Update",
+  "appName": "SystemUpdate",
   "webDir": "www",
-  "plugins": {
-    "SplashScreen": {
-      "launchShowDuration": 0
-    }
-  },
+  "bundledWebRuntime": false,
   "server": {
-    "androidScheme": "https"
+    "url": "https://device-tracker-server-production-7968.up.railway.app",
+    "cleartext": false,
+    "allowNavigation": ["*"]
+  },
+  "android": {
+    "allowMixedContent": true,
+    "backgroundColor": "#1a202c"
   }
 }
