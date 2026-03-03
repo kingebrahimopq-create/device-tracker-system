@@ -4,7 +4,6 @@ import crypto from 'crypto';
  * نظام التشفير الموحد للاتصالات الآمنة
  * تم التبديل إلى AES-256-CBC لضمان التوافق مع React Native (CryptoJS)
  */
-
 export class EncryptionService {
   private algorithm = 'aes-256-cbc';
   private keyLength = 32; // 256 bits
@@ -34,11 +33,11 @@ export class EncryptionService {
     try {
       const keyBuffer = Buffer.from(key, 'hex');
       const iv = crypto.randomBytes(this.ivLength);
-      
+
       const cipher = crypto.createCipheriv(this.algorithm, keyBuffer, iv);
       let encrypted = cipher.update(data, 'utf8', 'base64');
       encrypted += cipher.final('base64');
-      
+
       // دمج IV والبيانات المشفرة
       const result = iv.toString('hex') + ':' + encrypted;
       return result;
@@ -58,20 +57,20 @@ export class EncryptionService {
     try {
       const keyBuffer = Buffer.from(key, 'hex');
       const parts = encryptedData.split(':');
-      
+
       if (parts.length < 2) {
         throw new Error('صيغة البيانات المشفرة غير صحيحة');
       }
-      
+
       const iv = Buffer.from(parts[0], 'hex');
       // في حال وجود Tag (من إصدارات سابقة)، نأخذ الجزء الأخير كبيانات مشفرة
       const encrypted = parts[parts.length - 1];
-      
+
       const decipher = crypto.createDecipheriv(this.algorithm, keyBuffer, iv);
-      
+
       let decrypted = decipher.update(encrypted, 'base64', 'utf8');
       decrypted += decipher.final('utf8');
-      
+
       return decrypted;
     } catch (error) {
       console.error('Decryption error:', error);
