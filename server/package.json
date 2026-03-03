@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js",
-    "build": "npm install --omit=dev"
+    "build": "npm install --omit=dev",
+    "postinstall": "npm install --omit=dev"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -14,5 +15,8 @@
   },
   "engines": {
     "node": ">=14.0.0"
-  }
+  },
+  "keywords": ["device", "tracker", "server"],
+  "author": "",
+  "license": "ISC"
 }
