@@ -1,35 +1,25 @@
-# Build stage
-FROM node:18-alpine AS builder
-
-WORKDIR /app
-
-# Install dependencies
-COPY package*.json ./
-RUN npm install
-
-# Copy source and build
-COPY . .
-RUN npm run build
-
-# Production stage
+# استخدام صورة Node.js الخفيفة
 FROM node:18-alpine
 
+# تعيين مجلد العمل
 WORKDIR /app
 
-# Install production dependencies only
+# نسخ ملفات package.json
 COPY package*.json ./
+
+# تثبيت التبعيات
 RUN npm install --production
 
-# Copy built files
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/index.js ./index.js 2>/dev/null || true
+# نسخ الكود المصدري
+COPY . .
 
-# Set environment variables
+# تعيين متغيرات البيئة
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOST=0.0.0.0
 
+# فتح المنفذ
 EXPOSE 3000
 
-# Start the server
-CMD ["node", "dist/index.js"]
+# تشغيل التطبيق
+CMD ["node", "index.js"]

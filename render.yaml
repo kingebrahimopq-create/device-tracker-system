@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: device-tracker-server
+    env: docker
+    region: ohio
+    plan: free
+    dockerfile: ./server/Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+    healthCheckPath: /
+    autoDeploy: true
