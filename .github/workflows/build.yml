@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write  # للسماح بإنشاء وتحديث Releases
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -108,9 +111,25 @@ jobs:
           JAVA_TOOL_OPTIONS: "-Dhttps.protocols=TLSv1.2,TLSv1.3 -Djavax.net.ssl.trustStore=NUL"
           GRADLE_OPTS: "-Dhttps.protocols=TLSv1.2,TLSv1.3 -Djavax.net.ssl.trustStore=NUL"
 
-      - name: Upload APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: app-debug
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+      # حذف الإصدار السابق (إن وجد) والاحتفاظ بآخر نسخة ناجحة فقط
+      - name: Delete previous release (if exists)
+        run: |
+          gh release delete latest --yes || true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create new release with latest working APK
+        run: |
+          gh release create latest \
+            --title "آخر إصدار ناجح" \
+            --notes "✅ تم البناء بنجاح من commit ${{ github.sha }} في $(date -u)" \
+            android/app/build/outputs/apk/debug/app-debug.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
